@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { AuthProvider } from './src/context/AuthContext';
 import { LocationProvider } from './src/context/LocationContext';
 import { EventsProvider } from './src/context/EventsContext';
 import { colors } from './src/theme';
@@ -15,21 +16,23 @@ const appNavigationTheme = {
     card: colors.surfacePrimary,
     text: colors.textPrimary,
     border: colors.borderSubtle,
-    primary: colors.amberPrimary,
+    primary: colors.orangePrimary,
   },
 };
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <LocationProvider>
-        <EventsProvider>
-          <NavigationContainer theme={appNavigationTheme}>
-            <RootNavigator />
-            <StatusBar style="light" />
-          </NavigationContainer>
-        </EventsProvider>
-      </LocationProvider>
+      <AuthProvider>
+        <LocationProvider>
+          <EventsProvider>
+            <NavigationContainer theme={appNavigationTheme}>
+              <RootNavigator />
+              <StatusBar style="light" />
+            </NavigationContainer>
+          </EventsProvider>
+        </LocationProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

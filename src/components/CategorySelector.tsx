@@ -18,7 +18,7 @@ interface CategoryItem {
 }
 
 const CATEGORIES: CategoryItem[] = [
-  { key: 'All', label: 'All', icon: 'sparkles' },
+  { key: 'All', label: 'All', icon: 'grid' },
   { key: 'Music', label: 'Music', icon: 'musical-notes' },
   { key: 'Comedy', label: 'Comedy', icon: 'happy' },
   { key: 'Workshops', label: 'Workshops', icon: 'build' },
