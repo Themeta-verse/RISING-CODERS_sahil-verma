@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Coordinates } from '../types';
+import { Coordinates, LocationProvenance } from '../types';
 import { DEFAULT_USER_COORDINATES } from '../data/mockEvents';
 
 export interface DiscoveryArea {
@@ -46,6 +46,7 @@ interface LocationContextType {
   selectedAreaId: string;
   permissionStatus: 'granted' | 'denied' | 'fallback' | 'checking';
   isUsingFallback: boolean;
+  locationProvenance: LocationProvenance;
   discoveryAreas: DiscoveryArea[];
   setDiscoveryArea: (areaId: string) => Promise<void>;
   setDemoLocation: (locationId: string) => void;
@@ -60,6 +61,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [selectedAreaId, setSelectedAreaId] = useState<string>('indiranagar');
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'fallback' | 'checking'>('checking');
   const [isUsingFallback, setIsUsingFallback] = useState<boolean>(true);
+  const [locationProvenance, setLocationProvenance] = useState<LocationProvenance>('fallback_demo');
 
   // Restore preferred area on boot
   useEffect(() => {
@@ -74,6 +76,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setLocationName(area.name);
             setIsUsingFallback(true);
             setPermissionStatus('fallback');
+            setLocationProvenance('discovery_hub');
             return;
           }
         }
@@ -93,6 +96,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (status !== 'granted') {
         setPermissionStatus('denied');
         setIsUsingFallback(true);
+        setLocationProvenance('fallback_demo');
         const defaultArea = DISCOVERY_AREAS[0];
         setUserCoordinates(defaultArea.coordinates);
         setLocationName(defaultArea.name);
@@ -113,6 +117,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setPermissionStatus('granted');
       setIsUsingFallback(false);
       setSelectedAreaId('gps');
+      setLocationProvenance('gps');
 
       // Try reverse geocoding to get neighborhood / city
       try {
@@ -120,20 +125,41 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (reverse && reverse.length > 0) {
           const place = reverse[0];
           const name =
+            place.city ||
             place.district ||
             place.subregion ||
-            place.city ||
             place.street ||
             'Current Location';
           setLocationName(name);
+        } else {
+          if (
+            coords.latitude >= 18.5 &&
+            coords.latitude <= 19.5 &&
+            coords.longitude >= 72.5 &&
+            coords.longitude <= 73.3
+          ) {
+            setLocationName('Mumbai');
+          } else {
+            setLocationName('Current Location (GPS)');
+          }
         }
       } catch {
-        setLocationName('Current Location (GPS)');
+        if (
+          coords.latitude >= 18.5 &&
+          coords.latitude <= 19.5 &&
+          coords.longitude >= 72.5 &&
+          coords.longitude <= 73.3
+        ) {
+          setLocationName('Mumbai');
+        } else {
+          setLocationName('Current Location (GPS)');
+        }
       }
     } catch {
       // Fallback on simulator / missing GPS
       setPermissionStatus('fallback');
       setIsUsingFallback(true);
+      setLocationProvenance('fallback_demo');
       const defaultArea = DISCOVERY_AREAS[0];
       setUserCoordinates(defaultArea.coordinates);
       setLocationName(defaultArea.name);
@@ -155,6 +181,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setLocationName(area.name);
       setIsUsingFallback(true);
       setPermissionStatus('fallback');
+      setLocationProvenance('discovery_hub');
       await AsyncStorage.setItem(STORAGE_KEY_AREA, area.id);
     }
   };
@@ -171,6 +198,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         selectedAreaId,
         permissionStatus,
         isUsingFallback,
+        locationProvenance,
         discoveryAreas: DISCOVERY_AREAS,
         setDiscoveryArea,
         setDemoLocation,

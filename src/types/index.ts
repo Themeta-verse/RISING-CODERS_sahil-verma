@@ -138,5 +138,57 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Profile: undefined;
   EventDetail: { eventId: string };
+  CityPulse: { focusEventId?: string } | undefined;
 };
+
+// ==============================================================================
+// CITY PULSE SPATIAL & PROJECTION TYPES
+// ==============================================================================
+
+export type LocationProvenance = 'gps' | 'discovery_hub' | 'fallback_demo';
+
+export interface CartesianPoint {
+  x: number; // km relative to projection center (East is +x, West is -x)
+  y: number; // km relative to projection center (North is +y, South is -y)
+}
+
+export interface IsometricPoint {
+  isoX: number; // 2.5D projected horizontal coordinate
+  isoY: number; // 2.5D projected vertical coordinate
+}
+
+export interface ScreenPoint {
+  screenX: number;  // Position in screen pixels relative to viewport
+  screenY: number;  // Position in screen pixels relative to viewport
+  depth: number;    // Z-depth for painter's algorithm sorting
+  visible: boolean;  // Inside renderable viewport boundary
+}
+
+export interface ProjectedSpatialMarker {
+  eventId: string;
+  event: HyperlocalEvent;
+  coordinates: Coordinates;
+  cartesian: CartesianPoint;
+  isometric: IsometricPoint;
+  screen: ScreenPoint;
+  distanceKm: number;
+  isValid: boolean;
+}
+
+export interface CityPulseViewportConfig {
+  center: Coordinates;
+  scale: number; // Pixels per kilometer
+  viewportWidth: number;
+  viewportHeight: number;
+  isometricAngle?: number; // Radians, defaults to Math.PI / 6 (30 deg)
+  maxRadiusKm?: number;
+}
+
+export interface LocationMismatchInfo {
+  isMismatch: boolean;
+  userDistanceKm: number;
+  userLocationName: string;
+  activeAreaName: string;
+  disclaimer?: string;
+}
 

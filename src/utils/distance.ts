@@ -1,4 +1,4 @@
-import { Coordinates } from '../types';
+import type { Coordinates } from '../types';
 
 /**
  * Calculates distance in kilometers between two geo-coordinates using the Haversine formula.
