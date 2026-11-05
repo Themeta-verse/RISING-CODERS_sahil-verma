@@ -268,8 +268,65 @@ export const LoginScreen: React.FC = () => {
 
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or continue with</Text>
+              <Text style={styles.dividerText}>or switch test profile</Text>
               <View style={styles.dividerLine} />
+            </View>
+
+            {/* Two-Account Quick Switcher for Buddy Radar & Private Chat Testing */}
+            <View style={styles.testAccountSwitcherContainer}>
+              <View style={styles.testAccountRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.testAccountChip,
+                    email === 'alex.mercer@socialbuddy.io' && styles.testAccountChipActive,
+                  ]}
+                  onPress={() => {
+                    setEmail('alex.mercer@socialbuddy.io');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="person-circle"
+                    size={16}
+                    color={email === 'alex.mercer@socialbuddy.io' ? colors.orangePrimary : colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.testAccountName,
+                      email === 'alex.mercer@socialbuddy.io' && styles.testAccountNameActive,
+                    ]}
+                  >
+                    Alex Mercer
+                  </Text>
+                  <Text style={styles.testAccountSub}>Account A</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.testAccountChip,
+                    email === 'priya.patel@socialbuddy.io' && styles.testAccountChipActive,
+                  ]}
+                  onPress={() => {
+                    setEmail('priya.patel@socialbuddy.io');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="person-circle"
+                    size={16}
+                    color={email === 'priya.patel@socialbuddy.io' ? colors.orangePrimary : colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.testAccountName,
+                      email === 'priya.patel@socialbuddy.io' && styles.testAccountNameActive,
+                    ]}
+                  >
+                    Priya Patel
+                  </Text>
+                  <Text style={styles.testAccountSub}>Account B</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* One-Tap Demo Access / Guest Mode */}
@@ -482,6 +539,42 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textPrimary,
     fontWeight: '700',
+  },
+  testAccountSwitcherContainer: {
+    marginBottom: spacing.md,
+  },
+  testAccountRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  testAccountChip: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#161928',
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  testAccountChipActive: {
+    borderColor: colors.orangePrimary,
+    backgroundColor: 'rgba(255, 107, 0, 0.1)',
+  },
+  testAccountName: {
+    ...typography.caption,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  testAccountNameActive: {
+    color: colors.orangePrimary,
+  },
+  testAccountSub: {
+    fontSize: 10,
+    color: colors.textMuted,
   },
   footerBadges: {
     flexDirection: 'row',

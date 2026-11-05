@@ -139,7 +139,80 @@ export type RootStackParamList = {
   Profile: undefined;
   EventDetail: { eventId: string };
   CityPulse: { focusEventId?: string } | undefined;
+  BuddyMatch: { eventId?: string } | undefined;
+  BuddyMatchRadar: { eventId?: string } | undefined;
+  EventCircleDetail: { circleId: string; eventId?: string };
+  Chat: {
+    conversationId?: string;
+    recipientId: string;
+    recipientName: string;
+    recipientAvatar: string;
+    eventId?: string;
+  };
+  Conversations: undefined;
 };
+
+// ==============================================================================
+// BUDDY MATCH & EVENT CIRCLES TYPES
+// ==============================================================================
+
+export type ConnectionStatus =
+  | 'none'
+  | 'pending_outgoing'
+  | 'pending_incoming'
+  | 'connected'
+  | 'accepted'
+  | 'rejected'
+  | 'cancelled';
+
+export interface BuddyProfile {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  bio?: string;
+  interests: string[];
+  attendanceStatus: 'confirmed' | 'interested' | 'host' | 'attended';
+  registeredAt?: string;
+  isHost?: boolean;
+}
+
+export interface InterestMatchResult {
+  sharedInterests: string[];
+  sharedCount: number;
+  matchReason: string;
+  isSameEvent: boolean;
+  categoryAffinity?: boolean;
+}
+
+export interface EventCircle {
+  id: string;
+  eventId?: string;
+  categoryId?: string;
+  name: string;
+  tagline?: string;
+  description: string;
+  coverImageUrl?: string;
+  meetingPoint?: string;
+  rulesAndVibe?: string;
+  memberCount: number;
+  isJoined: boolean;
+  isOfficial?: boolean;
+  recentMembers?: BuddyAttendee[];
+}
+
+export interface BuddyConnectionRequest {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  eventId?: string;
+  status: ConnectionStatus;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  senderProfile?: BuddyProfile;
+  receiverProfile?: BuddyProfile;
+  targetUser?: BuddyProfile;
+}
 
 // ==============================================================================
 // CITY PULSE SPATIAL & PROJECTION TYPES
@@ -192,5 +265,41 @@ export interface LocationMismatchInfo {
   userLocationName: string;
   activeAreaName: string;
   disclaimer?: string;
+}
+
+// ==============================================================================
+// REALTIME PRIVATE MESSAGING & PLAN TOGETHER TYPES
+// ==============================================================================
+
+export type MessageType = 'text' | 'event_plan' | 'system';
+
+export interface EventPlanMetadata {
+  eventId: string;
+  eventTitle: string;
+  venue: string;
+  displayDate: string;
+  time: string;
+  imageUrl?: string;
+  meetingPoint?: string;
+  suggestedTime?: string;
+  note?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  messageType: MessageType;
+  metadata?: EventPlanMetadata;
+  createdAt: string;
+}
+
+export interface ConversationPreview {
+  id: string;
+  recipient: BuddyProfile;
+  lastMessage?: ChatMessage;
+  updatedAt: string;
+  unreadCount?: number;
 }
 

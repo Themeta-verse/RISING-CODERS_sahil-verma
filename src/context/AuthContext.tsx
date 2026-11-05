@@ -139,10 +139,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {}
 
-    if (isSupabaseConfigured && supabase && password) {
+    if (isSupabaseConfigured && supabase) {
+      if (!password) {
+        return { success: false, error: 'Password is required to sign in.' };
+      }
       try {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim().toLowerCase(),
           password,
         });
 
@@ -159,33 +162,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           const activeUser: UserProfile = {
             id: data.user.id,
-            name: profile?.full_name || data.user.email?.split('@')[0] || 'Member',
+            name: profile?.full_name || profile?.display_name || data.user.email?.split('@')[0] || 'Member',
             email: data.user.email || '',
             avatarUrl: profile?.avatar_url || DEFAULT_USER.avatarUrl,
             role: (profile?.role as UserRole) || 'user',
             isGuest: false,
+            interests: profile?.interests || DEFAULT_USER.interests,
+            bio: profile?.bio,
           };
           setUser(activeUser);
           setIsAuthenticated(true);
           await AsyncStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(activeUser));
           return { success: true };
         }
+        return { success: false, error: 'Authentication succeeded but no active session was returned.' };
       } catch (e: any) {
-        return { success: false, error: e.message || 'Authentication failed' };
+        return { success: false, error: e.message || 'Authentication failed.' };
       }
     }
 
-    // Local simulated login for testing and unprovisioned environments
+    // Unconfigured environment / offline fallback ONLY
     const userName = email.split('@')[0] || 'Community Pioneer';
     const profile: UserProfile = {
-      id: `usr-${Date.now()}`,
+      id: `usr-demo-${Date.now()}`,
       name: userName.charAt(0).toUpperCase() + userName.slice(1),
       email: email,
       avatarUrl: DEFAULT_USER.avatarUrl,
       role: email.includes('admin') ? 'admin' : email.includes('organizer') ? 'organizer' : 'user',
-      isGuest: false,
+      isGuest: true,
       interests: ['Workshops', 'Hackathons'],
-      bio: 'Active local community participant.',
+      bio: 'Demo mode profile (Supabase unconfigured).',
     };
 
     await AsyncStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(profile));
