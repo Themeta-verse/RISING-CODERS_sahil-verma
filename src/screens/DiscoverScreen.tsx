@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Modal,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -23,7 +24,19 @@ import { useEvents } from '../context/EventsContext';
 import { useLocation } from '../context/LocationContext';
 import { useAuth } from '../context/AuthContext';
 import { calculateDistanceKm } from '../utils/distance';
-import { RootStackParamList, HyperlocalEvent } from '../types';
+import {
+  RootStackParamList,
+  HyperlocalEvent,
+  EventFormatFilter,
+  DateFilterOption,
+} from '../types';
+import {
+  determineEventAttendanceMode,
+  isEventFreeNormalized,
+  matchesDateOption,
+  matchesMultiTokenSearch,
+  calculatePersonalizedEventScore,
+} from '../services/liveEventService';
 import { colors, spacing, borderRadius } from '../theme';
 
 const { width } = Dimensions.get('window');
@@ -42,133 +55,191 @@ const SEARCH_CATEGORIES = [
 ];
 
 const RADIUS_OPTIONS = ['All', '2 km', '5 km', '10 km', '25 km'] as const;
-const DATE_OPTIONS = ['All Dates', 'Today', 'This Weekend', 'Upcoming'] as const;
+
+const FORMAT_OPTIONS: { id: EventFormatFilter; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'all', label: 'All Formats', icon: 'layers-outline' },
+  { id: 'in_person', label: 'In-Person', icon: 'location-outline' },
+  { id: 'online', label: 'Online', icon: 'videocam-outline' },
+];
+
+const DATE_OPTIONS: DateFilterOption[] = [
+  'All Dates',
+  'Today',
+  'Tomorrow',
+  'This Weekend',
+  'This Week',
+];
 
 export const DiscoverScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
-  const { allEvents, isSaved, toggleSave } = useEvents();
+  const { allEvents, isSaved, toggleSave, refreshEvents, refreshError } = useEvents();
   const { userCoordinates, locationName, discoveryAreas, selectedAreaId, setDiscoveryArea } = useLocation();
   const { user } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string>('All');
   const [selectedRadius, setSelectedRadius] = useState<string>('All');
-  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('All Dates');
+  const [selectedFormat, setSelectedFormat] = useState<EventFormatFilter>('all');
+  const [selectedDateFilter, setSelectedDateFilter] = useState<DateFilterOption>('All Dates');
   const [isFreeOnly, setIsFreeOnly] = useState<boolean>(false);
   const [isAreaModalVisible, setIsAreaModalVisible] = useState<boolean>(false);
   const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
-  // Compute dynamic distances from current active discovery area / coordinates
+  // Compute dynamic distances and format/price enrichment
   const eventsWithDistance = useMemo(() => {
     return allEvents.map((event) => {
       const dist = calculateDistanceKm(userCoordinates, event.coordinates);
+      const attendanceMode = determineEventAttendanceMode(
+        event.attendanceMode,
+        event.isOnline,
+        event.venue,
+        event.address
+      );
+      const isOnline = attendanceMode === 'online';
+      const isFree = isEventFreeNormalized(event.isFree, event.price);
+
       return {
         ...event,
         distanceKm: dist,
+        attendanceMode,
+        isOnline,
+        isFree,
       };
     });
   }, [allEvents, userCoordinates]);
 
-  // Predictable combined filtering & deterministic ranking (FR-03, FR-04, FR-05)
+  // Combined Multi-Criteria Filtering
   const filteredEvents = useMemo(() => {
-    return eventsWithDistance
-      .filter((event) => {
-        // 1. Category tag filter
-        let matchesTag = true;
-        if (selectedTag !== 'All') {
-          const tagLower = selectedTag.toLowerCase();
-          matchesTag =
-            event.category.toLowerCase().includes(tagLower) ||
-            event.title.toLowerCase().includes(tagLower) ||
-            event.venue.toLowerCase().includes(tagLower) ||
-            event.tagline.toLowerCase().includes(tagLower);
+    return eventsWithDistance.filter((event) => {
+      // 1. Category tag filter
+      if (selectedTag !== 'All') {
+        const tagLower = selectedTag.toLowerCase();
+        const matchesTag =
+          event.category.toLowerCase().includes(tagLower) ||
+          event.title.toLowerCase().includes(tagLower) ||
+          event.venue.toLowerCase().includes(tagLower) ||
+          event.tagline.toLowerCase().includes(tagLower) ||
+          (event.tags && event.tags.some((t) => t.toLowerCase().includes(tagLower)));
+        if (!matchesTag) return false;
+      }
+
+      // 2. Tokenized Multi-Keyword Search (title, tagline, venue, category, organizer, description, tags)
+      if (searchQuery.trim().length > 0) {
+        if (!matchesMultiTokenSearch(event, searchQuery)) return false;
+      }
+
+      // 3. Free Only Filter
+      if (isFreeOnly) {
+        if (!event.isFree) return false;
+      }
+
+      // 4. Attendance Format Filter (All / In-Person / Online)
+      // Unknown formats are preserved only in 'all' and omitted from specific online/in_person filters
+      if (selectedFormat === 'online') {
+        const isOnlineMatch = event.attendanceMode === 'online' || event.attendanceMode === 'hybrid';
+        if (!isOnlineMatch) return false;
+      } else if (selectedFormat === 'in_person') {
+        const isInPersonMatch = event.attendanceMode === 'in_person' || event.attendanceMode === 'hybrid';
+        if (!isInPersonMatch) return false;
+      }
+
+      // 5. Distance Radius Filter (Skipped for pure online events)
+      if (selectedRadius !== 'All' && event.attendanceMode !== 'online') {
+        const radiusKm = parseInt(selectedRadius.replace(' km', ''), 10);
+        if (!isNaN(radiusKm) && event.distanceKm !== undefined) {
+          if (event.distanceKm > radiusKm) return false;
         }
+      }
 
-        // 2. Search query check (title, tagline, venue, category, organizer, description)
-        let matchesSearch = true;
-        if (searchQuery.trim().length > 0) {
-          const q = searchQuery.toLowerCase().trim();
-          matchesSearch =
-            event.title.toLowerCase().includes(q) ||
-            event.tagline.toLowerCase().includes(q) ||
-            event.category.toLowerCase().includes(q) ||
-            event.venue.toLowerCase().includes(q) ||
-            event.organizer.name.toLowerCase().includes(q) ||
-            event.description.toLowerCase().includes(q);
-        }
+      // 6. Dynamic Calendar Date Filter
+      if (selectedDateFilter !== 'All Dates') {
+        const matchesDate = matchesDateOption(event.date, selectedDateFilter);
+        if (!matchesDate) return false;
+      }
 
-        // 3. Free only filter
-        let matchesFree = true;
-        if (isFreeOnly) {
-          matchesFree = event.isFree === true;
-        }
-
-        // 4. Distance radius filter
-        let matchesRadius = true;
-        if (selectedRadius !== 'All') {
-          const radiusKm = parseInt(selectedRadius.replace(' km', ''), 10);
-          if (!isNaN(radiusKm) && event.distanceKm !== undefined) {
-            matchesRadius = event.distanceKm <= radiusKm;
-          }
-        }
-
-        // 5. Date filter
-        let matchesDate = true;
-        if (selectedDateFilter === 'Today') {
-          matchesDate = event.date === '2026-12-21' || event.displayDate.includes('21');
-        } else if (selectedDateFilter === 'This Weekend') {
-          matchesDate = event.displayDate.includes('SAT') || event.displayDate.includes('SUN');
-        } else if (selectedDateFilter === 'Upcoming') {
-          matchesDate = event.isUpcoming !== false;
-        }
-
-        return matchesTag && matchesSearch && matchesFree && matchesRadius && matchesDate;
-      })
-      .sort((a, b) => {
-        // Deterministic ranking: explicit interest overlap score + proximity
-        const userInterests = (user?.interests || []).map((i) => i.toLowerCase());
-        const aInterestMatch = userInterests.some((i) =>
-          a.category.toLowerCase().includes(i) ||
-          a.title.toLowerCase().includes(i) ||
-          a.tagline.toLowerCase().includes(i)
-        );
-        const bInterestMatch = userInterests.some((i) =>
-          b.category.toLowerCase().includes(i) ||
-          b.title.toLowerCase().includes(i) ||
-          b.tagline.toLowerCase().includes(i)
-        );
-
-        if (aInterestMatch && !bInterestMatch) return -1;
-        if (!aInterestMatch && bInterestMatch) return 1;
-
-        // Secondary sort: closer distance
-        return (a.distanceKm || 0) - (b.distanceKm || 0);
-      });
+      return true;
+    });
   }, [
     eventsWithDistance,
     selectedTag,
     searchQuery,
     isFreeOnly,
+    selectedFormat,
     selectedRadius,
     selectedDateFilter,
-    user?.interests,
   ]);
+
+  // Deterministic Personalized Ranking & Relevance Explanations
+  const scoredEvents = useMemo(() => {
+    const rawInterests = user?.interests || [];
+
+    return filteredEvents
+      .map((event) => {
+        const { score, matchExplanation } = calculatePersonalizedEventScore(event, rawInterests);
+        return {
+          event,
+          score,
+          matchExplanation,
+        };
+      })
+      .sort((a, b) => {
+        // Primary: Personalized Score descending
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        // Secondary: Proximity distance ascending
+        const aDist = a.event.distanceKm ?? 999;
+        const bDist = b.event.distanceKm ?? 999;
+        if (aDist !== bDist) {
+          return aDist - bDist;
+        }
+        // Tertiary: Date ascending
+        const aDate = a.event.date || '';
+        const bDate = b.event.date || '';
+        if (aDate !== bDate) {
+          return aDate.localeCompare(bDate);
+        }
+        // Stable deterministic tie-breaker: ID ascending
+        return a.event.id.localeCompare(b.event.id);
+      });
+  }, [filteredEvents, user?.interests]);
 
   // Compute dynamic ambient background glow based on active visible card
   const activeGlowColor = useMemo(() => {
-    const activeEvent = filteredEvents[activeCardIndex] || filteredEvents[0];
-    if (activeEvent && activeEvent.gradientColors && activeEvent.gradientColors[0]) {
-      return activeEvent.gradientColors[0];
+    const activeItem = scoredEvents[activeCardIndex] || scoredEvents[0];
+    if (activeItem && activeItem.event.gradientColors && activeItem.event.gradientColors[0]) {
+      return activeItem.event.gradientColors[0];
     }
     return colors.orangeSunset;
-  }, [filteredEvents, activeCardIndex]);
+  }, [scoredEvents, activeCardIndex]);
+
+  // Active filter descriptions for contextual empty states
+  const activeFilterDescriptions = useMemo(() => {
+    const parts: string[] = [];
+    if (searchQuery.trim()) parts.push(`"${searchQuery.trim()}"`);
+    if (selectedTag !== 'All') parts.push(selectedTag);
+    if (selectedFormat === 'online') parts.push('Online');
+    if (selectedFormat === 'in_person') parts.push('In-Person');
+    if (isFreeOnly) parts.push('Free Only');
+    if (selectedRadius !== 'All') parts.push(`within ${selectedRadius}`);
+    if (selectedDateFilter !== 'All Dates') parts.push(selectedDateFilter);
+    return parts;
+  }, [
+    searchQuery,
+    selectedTag,
+    selectedFormat,
+    isFreeOnly,
+    selectedRadius,
+    selectedDateFilter,
+  ]);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetY = event.nativeEvent.contentOffset.y;
     const index = Math.max(
       0,
-      Math.min(filteredEvents.length - 1, Math.floor((offsetY + 120) / CARD_INTERVAL))
+      Math.min(scoredEvents.length - 1, Math.floor((offsetY + 120) / CARD_INTERVAL))
     );
     if (index !== activeCardIndex) {
       setActiveCardIndex(index);
@@ -186,6 +257,33 @@ export const DiscoverScreen: React.FC = () => {
     setSelectedTag(tag);
     setActiveCardIndex(0);
   };
+
+  const handleResetAllFilters = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    setSearchQuery('');
+    setSelectedTag('All');
+    setSelectedFormat('all');
+    setSelectedRadius('All');
+    setSelectedDateFilter('All Dates');
+    setIsFreeOnly(false);
+    setActiveCardIndex(0);
+  };
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    try {
+      await refreshEvents(userCoordinates);
+    } catch (e) {
+      console.warn('Refresh error:', e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refreshEvents, userCoordinates]);
 
   return (
     <View style={styles.screenWrapper}>
@@ -217,7 +315,9 @@ export const DiscoverScreen: React.FC = () => {
       >
         <View style={styles.header}>
           <View style={styles.headerTitleGroup}>
-            <Text style={styles.headerDateLabel}>MONDAY, DEC 21</Text>
+            <Text style={styles.headerDateLabel}>
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase()}
+            </Text>
             <View style={styles.titleWithAreaRow}>
               <Text style={styles.headerMainTitle}>Events</Text>
               {/* Preferred Discovery Area Pill (FR-01, FR-02) */}
@@ -299,6 +399,16 @@ export const DiscoverScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Network Error / Offline Feedback Banner (Graceful degradation) */}
+        {refreshError ? (
+          <View style={styles.networkStatusBanner}>
+            <Ionicons name="cloud-offline-outline" size={12} color={colors.amberLight} />
+            <Text style={styles.networkStatusText} numberOfLines={1}>
+              {refreshError} · Showing cached events
+            </Text>
+          </View>
+        ) : null}
+
         {/* Category Filter Chips */}
         <View style={styles.categoryChipsWrapper}>
           <ScrollView
@@ -361,7 +471,7 @@ export const DiscoverScreen: React.FC = () => {
               <Text style={styles.buddyMatchChipText}>Buddy Radar</Text>
             </TouchableOpacity>
 
-            {/* Free Only Toggle */}
+            {/* Free Only Toggle (Functional Free / Normalized Price Filter) */}
             <TouchableOpacity
               style={[styles.filterChip, isFreeOnly && styles.filterChipActive]}
               onPress={() => {
@@ -381,6 +491,33 @@ export const DiscoverScreen: React.FC = () => {
                 Free Only
               </Text>
             </TouchableOpacity>
+
+            {/* Attendance Format Filter (In-Person / Online) */}
+            {FORMAT_OPTIONS.filter((f) => f.id !== 'all').map((f) => {
+              const isSelected = selectedFormat === f.id;
+              return (
+                <TouchableOpacity
+                  key={f.id}
+                  style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                  onPress={() => {
+                    try {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    } catch {}
+                    setSelectedFormat(isSelected ? 'all' : f.id);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={f.icon}
+                    size={11}
+                    color={isSelected ? colors.orangePrimary : colors.textMuted}
+                  />
+                  <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
 
             {/* Radius Options (FR-03) */}
             {RADIUS_OPTIONS.map((r) => {
@@ -409,7 +546,7 @@ export const DiscoverScreen: React.FC = () => {
               );
             })}
 
-            {/* Date Filters */}
+            {/* Dynamic Calendar Date Filters */}
             {DATE_OPTIONS.filter((d) => d !== 'All Dates').map((d) => {
               const isSelected = selectedDateFilter === d;
               return (
@@ -434,43 +571,50 @@ export const DiscoverScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Events Feed ScrollView */}
+      {/* Events Feed ScrollView with Pull-to-Refresh */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.orangePrimary}
+            colors={[colors.orangePrimary]}
+          />
+        }
       >
-        {filteredEvents.length === 0 ? (
+        {scoredEvents.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconCircle}>
               <Ionicons name="search-outline" size={30} color={colors.orangePrimary} />
             </View>
             <Text style={styles.emptyTitle}>No matching events found</Text>
             <Text style={styles.emptySubtitle}>
-              No events matched your current combination of keywords, radius, and date filters.
+              {activeFilterDescriptions.length > 0
+                ? `No events matched your current combination of ${activeFilterDescriptions.join(
+                    ' · '
+                  )} in ${locationName}.`
+                : `No events are currently scheduled in ${locationName}.`}
             </Text>
             <TouchableOpacity
               style={styles.resetSearchBtn}
-              onPress={() => {
-                setSearchQuery('');
-                setSelectedTag('All');
-                setSelectedRadius('All');
-                setSelectedDateFilter('All Dates');
-                setIsFreeOnly(false);
-              }}
+              onPress={handleResetAllFilters}
             >
               <Text style={styles.resetSearchText}>Reset All Filters</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          filteredEvents.map((event: HyperlocalEvent) => (
+          scoredEvents.map(({ event, matchExplanation }) => (
             <ReferenceEventCard
               key={event.id}
               event={event}
               isSaved={isSaved(event.id)}
               userInterests={user?.interests || []}
+              matchExplanation={matchExplanation}
               onPress={() => handleCardPress(event.id)}
               onBookmarkPress={() => toggleSave(event.id)}
             />
@@ -931,5 +1075,25 @@ const styles = StyleSheet.create({
   areaTag: {
     fontSize: 11,
     color: colors.textMuted,
+  },
+  networkStatusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: spacing.md,
+    marginTop: 4,
+    marginBottom: 4,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  networkStatusText: {
+    flex: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.amberLight,
   },
 });

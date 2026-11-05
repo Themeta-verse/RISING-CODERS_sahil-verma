@@ -1,7 +1,353 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { HyperlocalEvent, Coordinates, LiveConnectionStatus, EventCategory } from '../types';
+import {
+  HyperlocalEvent,
+  Coordinates,
+  LiveConnectionStatus,
+  EventCategory,
+  EventAttendanceMode,
+  DateFilterOption,
+} from '../types';
 import { MOCK_EVENTS } from '../data/mockEvents';
 import { calculateDistanceKm } from '../utils/distance';
+
+/**
+ * Accurately determines attendance mode without falsely treating missing coordinates as online.
+ */
+export function determineEventAttendanceMode(
+  explicitMode?: unknown,
+  isOnlineFlag?: unknown,
+  venueStr?: string,
+  addressStr?: string
+): EventAttendanceMode {
+  // 1. Explicit metadata takes absolute precedence
+  if (
+    explicitMode === 'in_person' ||
+    explicitMode === 'online' ||
+    explicitMode === 'hybrid' ||
+    explicitMode === 'unknown'
+  ) {
+    return explicitMode;
+  }
+
+  // 2. Explicit isOnline metadata
+  if (isOnlineFlag === true) return 'online';
+  if (isOnlineFlag === false) return 'in_person';
+
+  const combined = `${venueStr || ''} ${addressStr || ''}`.trim().toLowerCase();
+  // Missing venue and address strings must NEVER establish online or in-person (coordinates absence alone never implies online)
+  if (!combined) {
+    return 'unknown';
+  }
+
+  // 3. Strong online platform indicators
+  const onlineKeywords = [
+    'zoom',
+    'google meet',
+    'gmeet',
+    'youtube live',
+    'youtube stream',
+    'twitch.tv',
+    'twitch',
+    'webinar',
+    'discord',
+    'livestream',
+    'live stream',
+    'microsoft teams',
+    'ms teams',
+    'online event',
+    'online meetup',
+    'online workshop',
+    'online session',
+    'virtual event',
+    'virtual meetup',
+    'virtual workshop',
+    'remote via',
+    'hosted online',
+  ];
+
+  const hasOnlineIndicator =
+    onlineKeywords.some((kw) => combined.includes(kw)) ||
+    combined === 'online' ||
+    combined === 'virtual';
+
+  // 4. Credible physical venue indicators
+  // Generic cities/areas (Mumbai, Pune, Bandra, BKC, etc.) and unanchored substrings (e.g. 'st', 'rd')
+  // are strictly excluded to avoid false positives.
+  const physicalPatterns: RegExp[] = [
+    /\b(?:road|street|avenue|lane|marg|path|highway|bypass)\b/i,
+    /\b(?:auditorium|stadium|arena|theatre|theater|amphitheatre|amphitheater)\b/i,
+    /\b(?:convention centre|convention center|exhibition centre|exhibition center)\b/i,
+    /\b(?:hall|campus|grounds?|promenade|plaza|pavilion)\b/i,
+    /\b(?:wework|co-working|coworking)\b/i,
+    /\b(?:centre|center)\b/i,
+    /\b(?:building|tower|complex|block|floor|plot)\b/i,
+    /\b(?:academy|institute|university|college|school)\b/i,
+    /\b(?:club|cafe|café|lounge|bistro|restaurant|studio|gallery)\b/i,
+    /\b(?:rd\.|st\.|ave\.|dr\.)\b/i,
+  ];
+
+  const hasPhysicalIndicator = physicalPatterns.some((pattern) => pattern.test(combined));
+
+  // If conflicting or ambiguous signals (both online platform indicator AND physical venue indicator),
+  // do NOT confidently misclassify as online or in-person; return unknown (or hybrid if explicitly indicated).
+  if (hasOnlineIndicator && hasPhysicalIndicator) {
+    if (combined.includes('hybrid')) {
+      return 'hybrid';
+    }
+    return 'unknown';
+  }
+
+  if (hasOnlineIndicator) {
+    return 'online';
+  }
+
+  if (hasPhysicalIndicator) {
+    return 'in_person';
+  }
+
+  // 5. Otherwise return unknown
+  return 'unknown';
+}
+
+/**
+ * Accurately determines if an event is free, strictly distinguishing free from unknown/unavailable.
+ * Handles currency formatting (₹0, ₹0.00, inr 0, rs. 0, $0, etc.).
+ */
+export function isEventFreeNormalized(isFreeFlag?: unknown, priceStr?: string): boolean {
+  if (isFreeFlag === true) return true;
+
+  if (!priceStr || typeof priceStr !== 'string') {
+    return false;
+  }
+
+  const clean = priceStr.trim().toLowerCase();
+
+  // Explicit free phrases
+  if (
+    clean === 'free' ||
+    clean === 'free entry' ||
+    clean === 'free admission' ||
+    clean === 'free pass' ||
+    clean === 'complimentary'
+  ) {
+    return true;
+  }
+
+  // Currency zero patterns: ₹0, ₹ 0, ₹0.00, inr 0, rs. 0, rs 0, $0, $0.00, 0, 0.00
+  if (/^(?:₹|inr|rs\.?|\$)?\s*0(?:\.00)?$/.test(clean)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Parses an event date string safely into local year, month (0-indexed), and day components.
+ */
+export function parseLocalDate(dateStr: string): { year: number; month: number; day: number } | null {
+  if (!dateStr) return null;
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    return {
+      year: parseInt(match[1], 10),
+      month: parseInt(match[2], 10) - 1,
+      day: parseInt(match[3], 10),
+    };
+  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return {
+    year: d.getFullYear(),
+    month: d.getMonth(),
+    day: d.getDate(),
+  };
+}
+
+export function isSameCalendarDay(d1: { year: number; month: number; day: number }, d2: Date): boolean {
+  return d1.year === d2.getFullYear() && d1.month === d2.getMonth() && d1.day === d2.getDate();
+}
+
+/**
+ * Dynamic calendar date matcher. Handles local dates, weekend determination,
+ * and 7-day windows across month and year boundaries without hardcoded strings.
+ * Ensures past events do not match Today, Tomorrow, This Weekend, or This Week.
+ */
+export function matchesDateOption(
+  eventDateStr: string,
+  option: DateFilterOption,
+  now: Date = new Date()
+): boolean {
+  if (option === 'All Dates') return true;
+
+  const eventParts = parseLocalDate(eventDateStr);
+  if (!eventParts) return false;
+
+  const eventDateObj = new Date(eventParts.year, eventParts.month, eventParts.day);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Past events (strictly before today's calendar day) should never match specific upcoming filters
+  if (eventDateObj < today) {
+    return false;
+  }
+
+  if (option === 'Today') {
+    return isSameCalendarDay(eventParts, today);
+  }
+
+  if (option === 'Tomorrow') {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return isSameCalendarDay(eventParts, tomorrow);
+  }
+
+  if (option === 'This Weekend') {
+    const currentDay = today.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+    let satDate: Date;
+    let sunDate: Date;
+
+    if (currentDay === 6) {
+      // Today is Saturday -> weekend is today (Saturday) and tomorrow (Sunday)
+      satDate = new Date(today);
+      sunDate = new Date(today);
+      sunDate.setDate(sunDate.getDate() + 1);
+    } else if (currentDay === 0) {
+      // Today is Sunday -> weekend is yesterday (Saturday) and today (Sunday)
+      satDate = new Date(today);
+      satDate.setDate(satDate.getDate() - 1);
+      sunDate = new Date(today);
+    } else {
+      // Monday through Friday -> upcoming Saturday and Sunday
+      const diffToSat = 6 - currentDay;
+      satDate = new Date(today);
+      satDate.setDate(satDate.getDate() + diffToSat);
+      sunDate = new Date(satDate);
+      sunDate.setDate(sunDate.getDate() + 1);
+    }
+
+    return isSameCalendarDay(eventParts, satDate) || isSameCalendarDay(eventParts, sunDate);
+  }
+
+  if (option === 'This Week') {
+    // Current day through next 7 days
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    return eventDateObj >= today && eventDateObj <= weekEnd;
+  }
+
+  return true;
+}
+
+/**
+ * Tokenized multi-keyword search matching all tokens across combined event fields.
+ */
+export function matchesMultiTokenSearch(event: HyperlocalEvent, searchQuery: string): boolean {
+  if (!searchQuery || !searchQuery.trim()) {
+    return true;
+  }
+
+  const tokens = searchQuery
+    .toLowerCase()
+    .trim()
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
+
+  if (tokens.length === 0) return true;
+
+  const searchableText = [
+    event.title,
+    event.tagline,
+    event.category,
+    event.venue,
+    event.address,
+    event.organizer?.name,
+    event.description,
+    event.price,
+    ...(event.tags || []),
+    event.isFree ? 'free complimentary' : '',
+    event.attendanceMode === 'online' ? 'online virtual webinar remote' : '',
+    event.attendanceMode === 'in_person' ? 'in-person venue physical offline' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return tokens.every((token) => searchableText.includes(token));
+}
+
+export interface EventScoreResult {
+  score: number;
+  matchExplanation: string;
+}
+
+/**
+ * Deterministic personalized ranking using ONLY verified shared interests,
+ * category affinity, and proximity (zero invented editorial/trending data).
+ */
+export function calculatePersonalizedEventScore(
+  event: HyperlocalEvent,
+  userInterests: string[]
+): EventScoreResult {
+  let score = 0;
+  const cleanInterests = (userInterests || []).map((i) => i.toLowerCase().trim()).filter(Boolean);
+  const catLower = (event.category || '').toLowerCase();
+  const titleLower = (event.title || '').toLowerCase();
+  const tagLower = (event.tagline || '').toLowerCase();
+  const descLower = (event.description || '').toLowerCase();
+  const eventTags = (event.tags || []).map((t) => t.toLowerCase());
+
+  const matchedInterests = cleanInterests.filter((interest) => {
+    return (
+      catLower.includes(interest) ||
+      titleLower.includes(interest) ||
+      tagLower.includes(interest) ||
+      descLower.includes(interest) ||
+      eventTags.some((t) => t.includes(interest))
+    );
+  });
+
+  // 1. Verified shared interests: 40 points per match
+  score += matchedInterests.length * 40;
+
+  // 2. Verified category affinity: +25 if category directly matches user interest
+  if (cleanInterests.some((i) => catLower === i || catLower.includes(i))) {
+    score += 25;
+  }
+
+  // 3. Verified proximity score
+  if (event.attendanceMode === 'online') {
+    score += 20; // Online events receive neutral proximity boost
+  } else if (event.distanceKm !== undefined) {
+    if (event.distanceKm <= 2) score += 30;
+    else if (event.distanceKm <= 5) score += 20;
+    else if (event.distanceKm <= 10) score += 10;
+    else if (event.distanceKm <= 25) score += 5;
+  }
+
+  // Accurate, truthful match explanation label
+  const distStr = event.attendanceMode === 'online'
+    ? 'Virtual'
+    : event.distanceKm !== undefined
+    ? `${event.distanceKm} km away`
+    : 'Nearby';
+
+  let matchExplanation: string;
+  if (matchedInterests.length > 0) {
+    const topInterest = matchedInterests[0].charAt(0).toUpperCase() + matchedInterests[0].slice(1);
+    matchExplanation = matchedInterests.length > 1
+      ? `${topInterest} +${matchedInterests.length - 1} · ${distStr}`
+      : `${topInterest} Match · ${distStr}`;
+  } else if (event.attendanceMode === 'online') {
+    matchExplanation = `Online · ${event.category}`;
+  } else if (event.isFree) {
+    matchExplanation = `Free Entry · ${distStr}`;
+  } else if (event.distanceKm !== undefined && event.distanceKm <= 3) {
+    matchExplanation = `Walking Distance · ${event.distanceKm} km away`;
+  } else {
+    matchExplanation = `${event.category} · ${distStr}`;
+  }
+
+  return { score, matchExplanation };
+}
 
 export interface FetchLiveEventsResult {
   events: HyperlocalEvent[];
@@ -105,6 +451,17 @@ export function mapSupabaseEventToModel(row: Record<string, any>): HyperlocalEve
     row.price_display || (row.is_free ? 'Free' : 'Paid Entry');
 
   const categoryId = (row.category_id || row.category || 'Meetups') as EventCategory;
+  const venue = row.venue_name || row.venue || 'City Venue';
+  const address = row.address || '';
+  const attendanceMode = determineEventAttendanceMode(
+    row.attendance_mode || row.format,
+    row.is_online ?? row.isOnline,
+    venue,
+    address
+  );
+  const isOnline = attendanceMode === 'online';
+  const isFree = isEventFreeNormalized(row.is_free ?? row.isFree, priceDisplay);
+  const tags = Array.isArray(row.tags) ? row.tags : [];
 
   return {
     id: String(row.id),
@@ -133,15 +490,18 @@ export function mapSupabaseEventToModel(row: Record<string, any>): HyperlocalEve
       ? new Date(row.end_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
       : undefined,
     timezone: row.timezone || 'Asia/Kolkata',
-    venue: row.venue_name || row.venue || 'City Venue',
-    address: row.address || '',
+    venue,
+    address,
     coordinates: coords,
     distanceKm: typeof row.distance_km === 'number' ? row.distance_km : undefined,
     imageUrl:
       row.image_url ||
       'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=1000&auto=format&fit=crop&q=80',
     price: priceDisplay,
-    isFree: Boolean(row.is_free),
+    isFree,
+    attendanceMode,
+    isOnline,
+    tags,
     attendeeCount,
     capacity,
     registeredCount,

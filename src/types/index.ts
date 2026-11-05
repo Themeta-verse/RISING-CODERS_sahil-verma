@@ -85,6 +85,10 @@ export interface EventChecklist {
 
 export type EventStatus = 'published' | 'draft' | 'cancelled';
 
+export type EventAttendanceMode = 'in_person' | 'online' | 'hybrid' | 'unknown';
+export type EventFormatFilter = 'all' | 'in_person' | 'online';
+export type DateFilterOption = 'All Dates' | 'Today' | 'Tomorrow' | 'This Weekend' | 'This Week';
+
 export interface HyperlocalEvent {
   id: string;
   title: string;
@@ -106,6 +110,9 @@ export interface HyperlocalEvent {
   imageUrl: string;
   price: string;
   isFree: boolean;
+  attendanceMode?: EventAttendanceMode;
+  isOnline?: boolean;
+  tags?: string[];
   attendeeCount: number;
   capacity?: number;
   registeredCount?: number;
