@@ -204,6 +204,43 @@ export const RadarScreen: React.FC = () => {
           ))}
         </View>
 
+        {/* City Pulse 2.5D Isometric Mode Launcher */}
+        <TouchableOpacity
+          style={styles.cityPulseBanner}
+          activeOpacity={0.85}
+          onPress={() => {
+            try {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            } catch {}
+            navigation.navigate('CityPulse');
+          }}
+        >
+          <LinearGradient
+            colors={['rgba(255, 107, 0, 0.18)', 'rgba(19, 21, 31, 0.96)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.cityPulseGradient}
+          >
+            <View style={styles.cityPulseIconBox}>
+              <Ionicons name="cube" size={22} color={colors.orangePrimary} />
+            </View>
+            <View style={styles.cityPulseTextBox}>
+              <View style={styles.cityPulseTagRow}>
+                <Text style={styles.cityPulseTag}>2.5D ISOMETRIC</Text>
+                <View style={styles.cityPulseDot} />
+                <Text style={styles.cityPulseSubtag}>INTERACTIVE</Text>
+              </View>
+              <Text style={styles.cityPulseTitle}>Explore City Pulse</Text>
+              <Text style={styles.cityPulseDesc} numberOfLines={1}>
+                View urban districts, 3D buildings & spatial event pins
+              </Text>
+            </View>
+            <View style={styles.cityPulseArrowBtn}>
+              <Ionicons name="arrow-forward" size={16} color={colors.orangePrimary} />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
         {/* Events List in Order of Proximity */}
         <View style={styles.listSection}>
           <Text style={styles.listTitle}>Closest to You</Text>
@@ -564,5 +601,81 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     textAlign: 'center',
+  },
+  cityPulseBanner: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    borderRadius: borderRadius.card,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 107, 0, 0.4)',
+    shadowColor: colors.orangePrimary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cityPulseGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  cityPulseIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 107, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 0, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cityPulseTextBox: {
+    flex: 1,
+  },
+  cityPulseTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 2,
+  },
+  cityPulseTag: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.orangePrimary,
+    letterSpacing: 0.6,
+  },
+  cityPulseDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.textMuted,
+  },
+  cityPulseSubtag: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: colors.textMuted,
+    letterSpacing: 0.4,
+  },
+  cityPulseTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    letterSpacing: -0.2,
+    marginBottom: 2,
+  },
+  cityPulseDesc: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  cityPulseArrowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -318,6 +318,21 @@ export const DiscoverScreen: React.FC = () => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.secondaryFiltersContent}
           >
+            {/* City Pulse 2.5D Isometric Mode Launcher */}
+            <TouchableOpacity
+              style={styles.cityPulseChip}
+              onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                } catch {}
+                navigation.navigate('CityPulse');
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="cube" size={13} color={colors.orangePrimary} />
+              <Text style={styles.cityPulseChipText}>City Pulse</Text>
+            </TouchableOpacity>
+
             {/* Free Only Toggle */}
             <TouchableOpacity
               style={[styles.filterChip, isFreeOnly && styles.filterChipActive]}
@@ -734,6 +749,22 @@ const styles = StyleSheet.create({
   secondaryFiltersContent: {
     paddingHorizontal: spacing.lg,
     gap: 6,
+  },
+  cityPulseChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: borderRadius.pill,
+    backgroundColor: 'rgba(255, 107, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 0, 0.4)',
+  },
+  cityPulseChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.orangePrimary,
   },
   filterChip: {
     flexDirection: 'row',

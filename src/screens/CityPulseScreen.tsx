@@ -21,7 +21,7 @@ import {
 } from '../types';
 import { calculateDistanceKm } from '../utils/distance';
 import { detectLocationMismatch } from '../utils/projection';
-import { CityPulseCanvas } from '../components/CityPulseCanvas';
+import { CityPulse3DCanvas } from '../components/CityPulse3DCanvas';
 import { CityPulsePreviewCard } from '../components/CityPulsePreviewCard';
 import { fetchLiveHyperlocalEvents, subscribeToLiveEvents } from '../services/liveEventService';
 import { DEFAULT_USER_COORDINATES } from '../data/mockEvents';
@@ -278,8 +278,8 @@ export const CityPulseScreen: React.FC<CityPulseScreenProps> = ({
 
   return (
     <View style={styles.screenWrapper}>
-      {/* 1. Main 2.5D Isometric City Visualization Canvas */}
-      <CityPulseCanvas
+      {/* 1. Main 3D City Visualization Canvas (WebGL on Web, 2.5D on Mobile) */}
+      <CityPulse3DCanvas
         events={filteredEvents}
         centerCoordinates={centerCoordinates}
         centerLocationName={centerDisplayName}

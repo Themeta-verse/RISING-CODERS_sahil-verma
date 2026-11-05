@@ -12,6 +12,7 @@ import { HostScreen } from '../screens/HostScreen';
 import { SavedScreen } from '../screens/SavedScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { EventDetailScreen } from '../screens/EventDetailScreen';
+import { CityPulseScreen } from '../screens/CityPulseScreen';
 import { RootTabParamList, RootStackParamList } from '../types';
 import { colors, typography } from '../theme';
 
@@ -123,6 +124,13 @@ export const RootNavigator: React.FC = () => {
             component={EventDetailScreen}
             options={{
               animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="CityPulse"
+            component={CityPulseScreen}
+            options={{
+              animation: 'slide_from_bottom',
             }}
           />
         </>
