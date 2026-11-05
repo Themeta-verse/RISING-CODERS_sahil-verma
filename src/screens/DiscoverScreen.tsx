@@ -228,7 +228,7 @@ export const DiscoverScreen: React.FC = () => {
               >
                 <Ionicons name="location" size={12} color={colors.orangePrimary} />
                 <Text style={styles.areaPickerText} numberOfLines={1}>
-                  {locationName.replace('Indiranagar ', '').replace('Koramangala ', '')}
+                  {locationName}
                 </Text>
                 <Ionicons name="chevron-down" size={11} color={colors.textSecondary} />
               </TouchableOpacity>

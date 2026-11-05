@@ -147,6 +147,8 @@ export type RootStackParamList = {
 
 export type LocationProvenance = 'gps' | 'discovery_hub' | 'fallback_demo';
 
+export type LiveConnectionStatus = 'LIVE' | 'CONNECTING' | 'DEMO' | 'OFFLINE';
+
 export interface CartesianPoint {
   x: number; // km relative to projection center (East is +x, West is -x)
   y: number; // km relative to projection center (North is +y, South is -y)

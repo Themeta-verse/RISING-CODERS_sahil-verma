@@ -85,7 +85,7 @@ function computeMarkerOffsets(evs: HyperlocalEvent[]): Array<[number, number]> {
 export const CityPulse3DCanvas: React.FC<CityPulse3DCanvasProps> = ({
   events,
   centerCoordinates,
-  centerLocationName = 'Indiranagar Arts Hub',
+  centerLocationName = 'Bandra & BKC Culture Hub',
   selectedEventId,
   onSelectMarker,
   recenterTrigger = 0,
@@ -107,11 +107,11 @@ export const CityPulse3DCanvas: React.FC<CityPulse3DCanvasProps> = ({
         container: mapContainerRef.current,
         style: OPEN_FREE_MAP_DARK_STYLE,
         center: [centerCoordinates.longitude, centerCoordinates.latitude],
-        zoom: 15.3,
-        pitch: 54, // Balanced 3D Isometric Pitch
-        bearing: -18, // Optimal architectural angle
+        zoom: 12.5, // Broad initial overview showing the Mumbai metropolitan corridor
+        pitch: 48, // Natural isometric angle
+        bearing: -14, // Coastal perspective
         antialias: true,
-        maxPitch: 72,
+        maxPitch: 70,
         attributionControl: false,
       });
 
@@ -165,7 +165,7 @@ export const CityPulse3DCanvas: React.FC<CityPulse3DCanvasProps> = ({
           } catch {}
         }
 
-        // Extend locality / suburb labels so neighborhood names (Indiranagar, etc.) stay visible
+        // Extend locality / suburb labels so neighborhood names (Bandra, BKC, etc.) stay visible
         if (map.getLayer('place_suburb')) {
           try {
             map.setLayoutProperty('place_suburb', 'maxzoom', 19);
@@ -325,25 +325,59 @@ export const CityPulse3DCanvas: React.FC<CityPulse3DCanvasProps> = ({
 
     map.flyTo({
       center: [centerCoordinates.longitude, centerCoordinates.latitude],
-      zoom: 15.3,
-      pitch: is3DMode ? 54 : 0,
-      bearing: is3DMode ? -18 : 0,
-      duration: 1200,
+      zoom: 12.5,
+      pitch: is3DMode ? 48 : 0,
+      bearing: is3DMode ? -14 : 0,
+      duration: 1100,
     });
   }, [centerCoordinates, mapLoaded, is3DMode]);
 
-  // Handle Recenter trigger
+  // Handle Recenter trigger or Auto-fit
   useEffect(() => {
     if (recenterTrigger > 0 && mapInstanceRef.current) {
-      mapInstanceRef.current.flyTo({
-        center: [centerCoordinates.longitude, centerCoordinates.latitude],
-        zoom: 15.3,
+      const map = mapInstanceRef.current;
+      if (events.length > 0 && window.maplibregl) {
+        // Fit camera to encompass all active event markers with comfortable UI padding
+        const bounds = new window.maplibregl.LngLatBounds();
+        events.forEach((ev) => {
+          bounds.extend([ev.coordinates.longitude, ev.coordinates.latitude]);
+        });
+        bounds.extend([centerCoordinates.longitude, centerCoordinates.latitude]);
+        map.fitBounds(bounds, {
+          padding: { top: 120, bottom: 220, left: 60, right: 60 },
+          maxZoom: 14.5,
+          pitch: is3DMode ? 48 : 0,
+          bearing: is3DMode ? -14 : 0,
+          duration: 900,
+        });
+      } else {
+        map.flyTo({
+          center: [centerCoordinates.longitude, centerCoordinates.latitude],
+          zoom: 12.5,
+          pitch: is3DMode ? 48 : 0,
+          bearing: is3DMode ? -14 : 0,
+          duration: 900,
+        });
+      }
+    }
+  }, [recenterTrigger, centerCoordinates, is3DMode, events]);
+
+  // Handle external selectedEventId change (fly camera smoothly to selected event)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapLoaded || !selectedEventId) return;
+
+    const targetEvent = events.find((e) => e.id === selectedEventId);
+    if (targetEvent) {
+      map.flyTo({
+        center: [targetEvent.coordinates.longitude, targetEvent.coordinates.latitude],
+        zoom: 15.6,
         pitch: is3DMode ? 54 : 0,
-        bearing: is3DMode ? -18 : 0,
-        duration: 900,
+        bearing: is3DMode ? -14 : 0,
+        duration: 1000,
       });
     }
-  }, [recenterTrigger, centerCoordinates, is3DMode]);
+  }, [selectedEventId, events, mapLoaded, is3DMode]);
 
   // Synchronize 3D Interactive Event Markers
   useEffect(() => {
@@ -508,9 +542,9 @@ export const CityPulse3DCanvas: React.FC<CityPulse3DCanvasProps> = ({
           if (mapInstanceRef.current) {
             mapInstanceRef.current.flyTo({
               center: [centerCoordinates.longitude, centerCoordinates.latitude],
-              zoom: 15.3,
-              pitch: is3DMode ? 54 : 0,
-              bearing: is3DMode ? -18 : 0,
+              zoom: 12.5,
+              pitch: is3DMode ? 48 : 0,
+              bearing: is3DMode ? -14 : 0,
               duration: 900,
             });
           }
@@ -518,7 +552,7 @@ export const CityPulse3DCanvas: React.FC<CityPulse3DCanvasProps> = ({
         activeOpacity={0.8}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Ionicons name="locate" size={18} color={colors.orangePrimary} />
+        <Ionicons name="scan-outline" size={17} color={colors.orangePrimary} />
       </TouchableOpacity>
     </View>
   );
@@ -532,14 +566,14 @@ const styles = StyleSheet.create({
   },
   modeToggleButton: {
     position: 'absolute',
-    top: 130,
-    right: 18,
+    top: 148,
+    right: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(19, 21, 31, 0.92)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    backgroundColor: 'rgba(16, 22, 36, 0.94)',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     borderRadius: borderRadius.pill,
     borderWidth: 1,
     borderColor: 'rgba(255, 107, 0, 0.35)',
@@ -547,19 +581,19 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   modeToggleText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '800',
     color: colors.orangePrimary,
     letterSpacing: 0.5,
   },
   recenterButton: {
     position: 'absolute',
-    right: 18,
-    bottom: 120,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(19, 21, 31, 0.92)',
+    top: 188,
+    right: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(16, 22, 36, 0.94)',
     borderWidth: 1,
     borderColor: 'rgba(255, 107, 0, 0.3)',
     alignItems: 'center',

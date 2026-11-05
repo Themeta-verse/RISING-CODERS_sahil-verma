@@ -68,7 +68,7 @@ const PROCEDURAL_BUILDINGS: CityBuildingDef[] = [
 export const CityPulseCanvas: React.FC<CityPulseCanvasProps> = ({
   events,
   centerCoordinates,
-  centerLocationName = 'Indiranagar Arts Hub',
+  centerLocationName = 'Bandra & BKC Culture Hub',
   selectedEventId,
   onSelectMarker,
   viewportWidth,

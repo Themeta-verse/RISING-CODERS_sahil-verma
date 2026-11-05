@@ -318,7 +318,7 @@ export function detectLocationMismatch(
   userCoords: Coordinates,
   centerCoords: Coordinates,
   userLocationName: string = 'Current Location',
-  activeAreaName: string = 'Indiranagar Arts Hub',
+  activeAreaName: string = 'Bandra & BKC Culture Hub',
   thresholdKm: number = 50
 ): LocationMismatchInfo {
   if (!isValidCoordinate(userCoords) || !isValidCoordinate(centerCoords)) {
@@ -333,15 +333,14 @@ export function detectLocationMismatch(
   const userDistanceKm = calculateDistanceKm(userCoords, centerCoords);
   const isMismatch = userDistanceKm > thresholdKm;
 
-  // Resolve genuine physical location name if it was erroneously defaulted to Bengaluru hub
+  // Resolve genuine physical location name if it was defaulted or matches active hub
   let resolvedUserLocation = userLocationName;
   if (
     isMismatch &&
     (!resolvedUserLocation ||
       resolvedUserLocation === activeAreaName ||
-      resolvedUserLocation.toLowerCase().includes('indiranagar') ||
-      resolvedUserLocation.toLowerCase().includes('bengaluru') ||
-      resolvedUserLocation.toLowerCase().includes('bangalore'))
+      resolvedUserLocation.toLowerCase().includes('bandra') ||
+      resolvedUserLocation.toLowerCase().includes('culture hub'))
   ) {
     if (
       userCoords.latitude >= 18.5 &&
@@ -359,7 +358,7 @@ export function detectLocationMismatch(
   if (isMismatch) {
     disclaimer = `Physical GPS: ${resolvedUserLocation} (${formatDistance(
       userDistanceKm
-    )} away) • Exploring: ${activeAreaName}, Bengaluru (Simulated)`;
+    )} away) • Exploring: ${activeAreaName} (Maharashtra Hub)`;
   }
 
   return {

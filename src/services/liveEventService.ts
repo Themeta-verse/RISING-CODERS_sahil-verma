@@ -1,135 +1,238 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { HyperlocalEvent, Coordinates } from '../types';
+import { HyperlocalEvent, Coordinates, LiveConnectionStatus, EventCategory } from '../types';
 import { MOCK_EVENTS } from '../data/mockEvents';
+import { calculateDistanceKm } from '../utils/distance';
 
-export interface LiveEventState {
+export interface FetchLiveEventsResult {
   events: HyperlocalEvent[];
-  isLoading: boolean;
-  isLiveConnected: boolean;
-  error: string | null;
-  lastUpdated: Date | null;
+  status: LiveConnectionStatus;
+  isLive: boolean;
+  isDemoFallback: boolean;
+  error?: string;
+  source: 'postgis_rpc' | 'supabase_table' | 'local_demo';
+}
+
+export interface RealtimeSubscriptionHandlers {
+  onInsert: (event: HyperlocalEvent) => void;
+  onUpdate: (event: HyperlocalEvent) => void;
+  onDelete: (eventId: string) => void;
+  onStatusChange?: (status: 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR') => void;
 }
 
 /**
- * Parses PostGIS geometry / GeoJSON or latitude/longitude column into Coordinates.
+ * Parses PostGIS geometry, GeoJSON Point, or direct latitude/longitude columns into Coordinates.
  */
-function parseLocationCoords(rawLocation: unknown, fallbackLat?: number, fallbackLon?: number): Coordinates {
+function parseLocationCoords(
+  rawLocation: unknown,
+  fallbackLat?: number,
+  fallbackLon?: number
+): Coordinates {
+  // 1. Direct numeric latitude and longitude (returned by get_hyperlocal_events RPC)
+  if (
+    typeof fallbackLat === 'number' &&
+    typeof fallbackLon === 'number' &&
+    !isNaN(fallbackLat) &&
+    !isNaN(fallbackLon)
+  ) {
+    return {
+      latitude: fallbackLat,
+      longitude: fallbackLon,
+    };
+  }
+
+  // 2. GeoJSON object { type: 'Point', coordinates: [lon, lat] }
   if (rawLocation && typeof rawLocation === 'object') {
     const loc = rawLocation as Record<string, unknown>;
-    // GeoJSON format: { type: 'Point', coordinates: [lon, lat] }
     if (loc.type === 'Point' && Array.isArray(loc.coordinates) && loc.coordinates.length >= 2) {
-      return {
-        latitude: Number(loc.coordinates[1]),
-        longitude: Number(loc.coordinates[0]),
-      };
+      const lon = Number(loc.coordinates[0]);
+      const lat = Number(loc.coordinates[1]);
+      if (!isNaN(lat) && !isNaN(lon)) {
+        return { latitude: lat, longitude: lon };
+      }
     }
   }
+
+  // 3. Stringified GeoJSON Point
+  if (typeof rawLocation === 'string' && rawLocation.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(rawLocation);
+      if (parsed.type === 'Point' && Array.isArray(parsed.coordinates) && parsed.coordinates.length >= 2) {
+        const lon = Number(parsed.coordinates[0]);
+        const lat = Number(parsed.coordinates[1]);
+        if (!isNaN(lat) && !isNaN(lon)) {
+          return { latitude: lat, longitude: lon };
+        }
+      }
+    } catch {}
+  }
+
+  // Fallback to Mumbai Bandra & BKC default
   return {
-    latitude: fallbackLat ?? 12.9716,
-    longitude: fallbackLon ?? 77.5946,
+    latitude: 19.0596,
+    longitude: 72.8295,
   };
 }
 
 /**
- * Maps a raw Supabase event record (from public.events or get_hyperlocal_events RPC)
- * into the application's HyperlocalEvent model.
+ * Maps a raw Supabase event record (from get_hyperlocal_events RPC or public.events)
+ * into the application's HyperlocalEvent model without inventing non-existent values.
  */
 export function mapSupabaseEventToModel(row: Record<string, any>): HyperlocalEvent {
   const coords = parseLocationCoords(row.location, row.latitude, row.longitude);
 
+  const startTimeStr = row.start_time;
+  const startDate = startTimeStr ? new Date(startTimeStr) : new Date();
+  const isValidDate = !isNaN(startDate.getTime());
+
+  // Reliable attendee count from PostGIS RSVP aggregation
+  const attendeeCount =
+    typeof row.attendee_count === 'number'
+      ? row.attendee_count
+      : typeof row.attendee_count === 'string'
+      ? Number(row.attendee_count) || 0
+      : 0;
+
+  // Reliable capacity only if database explicitly has capacity column
+  const capacity =
+    typeof row.capacity === 'number' && row.capacity > 0 ? row.capacity : undefined;
+
+  // Reliable registered count only if explicitly provided
+  const registeredCount =
+    typeof row.registered_count === 'number' ? row.registered_count : undefined;
+
+  // Price display
+  const priceDisplay =
+    row.price_display || (row.is_free ? 'Free' : 'Paid Entry');
+
+  const categoryId = (row.category_id || row.category || 'Meetups') as EventCategory;
+
   return {
-    id: row.id,
+    id: String(row.id),
     title: row.title || 'Untitled Event',
     tagline: row.tagline || '',
     description: row.description || '',
-    category: row.category_id || row.category || 'Meetups',
-    date: row.start_time ? row.start_time.split('T')[0] : '2026-12-21',
-    displayDate: row.start_time
-      ? new Date(row.start_time).toLocaleDateString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-        }).toUpperCase()
+    category: categoryId,
+    date: isValidDate ? startDate.toISOString().split('T')[0] : '2026-12-21',
+    displayDate: isValidDate
+      ? startDate
+          .toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          })
+          .toUpperCase()
       : 'DEC 21',
-    dayNumber: row.start_time ? String(new Date(row.start_time).getDate()) : '21',
-    monthShort: row.start_time
-      ? new Date(row.start_time).toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
+    dayNumber: isValidDate ? String(startDate.getDate()) : '21',
+    monthShort: isValidDate
+      ? startDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
       : 'DEC',
-    time: row.start_time
-      ? new Date(row.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    time: isValidDate
+      ? startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
       : '7:00 PM',
-    endTime: row.end_time
+    endTime: row.end_time && !isNaN(new Date(row.end_time).getTime())
       ? new Date(row.end_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
       : undefined,
-    timezone: row.timezone || 'IST (UTC+5:30)',
-    venue: row.venue_name || row.venue || 'City Hub',
+    timezone: row.timezone || 'Asia/Kolkata',
+    venue: row.venue_name || row.venue || 'City Venue',
     address: row.address || '',
     coordinates: coords,
-    distanceKm: typeof row.distance_km === 'number' ? row.distance_km : 1.5,
+    distanceKm: typeof row.distance_km === 'number' ? row.distance_km : undefined,
     imageUrl:
       row.image_url ||
       'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=1000&auto=format&fit=crop&q=80',
-    price: row.price_display || (row.is_free ? 'Free' : '$20'),
+    price: priceDisplay,
     isFree: Boolean(row.is_free),
-    attendeeCount: row.attendee_count || 120,
-    capacity: row.capacity || 200,
-    registeredCount: row.registered_count || 45,
-    status: row.moderation_status === 'approved' ? 'published' : 'published',
+    attendeeCount,
+    capacity,
+    registeredCount,
+    status:
+      row.moderation_status === 'approved' || row.moderation_status === 'demo'
+        ? 'published'
+        : 'draft',
     isFeatured: Boolean(row.is_featured),
     isTrending: Boolean(row.is_trending),
     isSeedDemoData: Boolean(row.is_demo),
-    isVerifiedRealWorld: row.verification_status === 'partner_verified' || row.verification_status === 'community_vouched',
-    buddiesAttending: row.buddies_attending || [],
+    isVerifiedRealWorld:
+      row.verification_status === 'partner_verified' ||
+      row.verification_status === 'community_vouched',
+    buddiesAttending: [],
     gradientColors: ['#FF5E3A', '#D9381E', 'rgba(7, 8, 11, 0.96)'],
     organizer: {
       id: row.organizer_id || 'org-anon',
-      name: row.organizer_name || 'Community Organizer',
-      avatarUrl: row.organizer_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      isVerified: Boolean(row.organizer_verified),
+      name: row.organizer_name || (row.organizers && row.organizers.name) || 'Community Organizer',
+      avatarUrl:
+        row.organizer_avatar ||
+        (row.organizers && row.organizers.avatar_url) ||
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      isVerified: Boolean(
+        row.organizer_verified ||
+          (row.organizers &&
+            (row.organizers.verification_tier === 'partner_verified' ||
+              row.organizers.verification_tier === 'official_institution'))
+      ),
     },
   };
 }
 
 /**
- * Fetches events using get_hyperlocal_events PostGIS RPC or direct table query.
+ * Fetches events using the PostGIS get_hyperlocal_events RPC or direct table query.
+ * Honestly reflects connection and demo fallback status.
  */
 export async function fetchLiveHyperlocalEvents(
   centerLat: number,
   centerLon: number,
   radiusKm: number,
   category: string = 'All'
-): Promise<{ events: HyperlocalEvent[]; isLive: boolean; error?: string }> {
+): Promise<FetchLiveEventsResult> {
+  // If Supabase environment variables are missing, honestly report DEMO fallback
   if (!isSupabaseConfigured || !supabase) {
+    const filteredMock = MOCK_EVENTS.filter((ev) => {
+      if (category !== 'All' && ev.category !== category) return false;
+      const dist = calculateDistanceKm({ latitude: centerLat, longitude: centerLon }, ev.coordinates);
+      return dist <= radiusKm;
+    });
+
     return {
-      events: MOCK_EVENTS,
+      events: filteredMock.length > 0 ? filteredMock : MOCK_EVENTS,
+      status: 'DEMO',
       isLive: false,
-      error: 'Supabase credentials not configured in environment (EXPO_PUBLIC_SUPABASE_URL)',
+      isDemoFallback: true,
+      source: 'local_demo',
+      error: 'Supabase credentials not configured (EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY)',
     };
   }
 
+  const clampedRadius = Math.min(Math.max(radiusKm, 1), 50);
+
   try {
-    // 1. Attempt PostGIS RPC call first
+    // 1. Attempt PostGIS RPC call first (respecting SQL function signature and bounds)
     const { data: rpcData, error: rpcError } = await supabase.rpc('get_hyperlocal_events', {
       user_lat: centerLat,
       user_lon: centerLon,
-      radius_km: radiusKm,
+      radius_km: clampedRadius,
       filter_category: category,
       include_demo: true,
       max_limit: 60,
       page_offset: 0,
     });
 
-    if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+    if (!rpcError && Array.isArray(rpcData)) {
       const mapped = rpcData.map(mapSupabaseEventToModel);
-      return { events: mapped, isLive: true };
+      return {
+        events: mapped,
+        status: 'LIVE',
+        isLive: true,
+        isDemoFallback: false,
+        source: 'postgis_rpc',
+      };
     }
 
-    // 2. Direct table fallback if RPC is not deployed yet
+    // 2. Direct table fallback if RPC is not deployed in current project
     let query = supabase
       .from('events')
-      .select('*')
+      .select('*, organizers(name, avatar_url, verification_tier)')
       .in('moderation_status', ['approved', 'demo'])
-      .order('created_at', { ascending: false })
+      .order('start_time', { ascending: true })
       .limit(60);
 
     if (category !== 'All') {
@@ -142,55 +245,109 @@ export async function fetchLiveHyperlocalEvents(
       throw tableError;
     }
 
-    if (Array.isArray(tableData) && tableData.length > 0) {
+    if (Array.isArray(tableData)) {
       const mapped = tableData.map(mapSupabaseEventToModel);
-      return { events: mapped, isLive: true };
+      // Filter distance in JavaScript when using direct table fallback
+      const inRadius = mapped.filter((ev) => {
+        const dist = calculateDistanceKm({ latitude: centerLat, longitude: centerLon }, ev.coordinates);
+        ev.distanceKm = dist;
+        return dist <= clampedRadius;
+      });
+
+      return {
+        events: inRadius,
+        status: 'LIVE',
+        isLive: true,
+        isDemoFallback: false,
+        source: 'supabase_table',
+      };
     }
 
-    // If live table returns 0 records, fall back to mock events so user experience remains rich
+    // If query returned non-array, fall back
     return {
       events: MOCK_EVENTS,
-      isLive: true,
+      status: 'OFFLINE',
+      isLive: false,
+      isDemoFallback: true,
+      source: 'local_demo',
+      error: 'Unexpected data structure returned from Supabase',
     };
   } catch (err: any) {
     return {
       events: MOCK_EVENTS,
+      status: 'OFFLINE',
       isLive: false,
-      error: err.message || 'Database connection error',
+      isDemoFallback: true,
+      source: 'local_demo',
+      error: err?.message || 'Database connection error',
     };
   }
 }
 
 /**
  * Subscribes to Supabase Realtime changes on public.events.
- * Returns an unsubscribe callback for clean component unmounting.
+ * Correctly filters public events, handles INSERT/UPDATE/DELETE,
+ * and returns an unsubscribe callback for clean unmounting.
  */
 export function subscribeToLiveEvents(
-  onEventChange: (payload: { eventType: 'INSERT' | 'UPDATE' | 'DELETE'; newRecord?: any; oldRecord?: any }) => void
+  handlers: RealtimeSubscriptionHandlers
 ): () => void {
   if (!isSupabaseConfigured || !supabase) {
     return () => {};
   }
 
   try {
+    const channelName = `city-pulse-live-${Date.now()}`;
     const channel = supabase
-      .channel('city-pulse-live-feed')
+      .channel(channelName)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'events' },
+        { event: 'INSERT', schema: 'public', table: 'events' },
         (payload) => {
-          onEventChange({
-            eventType: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
-            newRecord: payload.new,
-            oldRecord: payload.old,
-          });
+          const row = payload.new;
+          // Security check: Only approved or demo events are visible
+          if (row && (row.moderation_status === 'approved' || row.moderation_status === 'demo')) {
+            const mapped = mapSupabaseEventToModel(row);
+            handlers.onInsert(mapped);
+          }
         }
       )
-      .subscribe();
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'events' },
+        (payload) => {
+          const row = payload.new;
+          // If moderation status was revoked (e.g. rejected or unapproved), remove event
+          if (row && row.moderation_status !== 'approved' && row.moderation_status !== 'demo') {
+            handlers.onDelete(String(row.id));
+          } else if (row) {
+            const mapped = mapSupabaseEventToModel(row);
+            handlers.onUpdate(mapped);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'events' },
+        (payload) => {
+          if (payload.old && payload.old.id) {
+            handlers.onDelete(String(payload.old.id));
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (handlers.onStatusChange) {
+          handlers.onStatusChange(status as any);
+        }
+      });
 
     return () => {
-      if (supabase) {
-        supabase.removeChannel(channel);
+      try {
+        if (supabase) {
+          supabase.removeChannel(channel);
+        }
+      } catch (err) {
+        console.warn('Error removing Supabase realtime channel:', err);
       }
     };
   } catch (err) {

@@ -226,7 +226,7 @@ export const RadarScreen: React.FC = () => {
             </View>
             <View style={styles.cityPulseTextBox}>
               <View style={styles.cityPulseTagRow}>
-                <Text style={styles.cityPulseTag}>2.5D ISOMETRIC</Text>
+                <Text style={styles.cityPulseTag}>REAL-TIME 3D</Text>
                 <View style={styles.cityPulseDot} />
                 <Text style={styles.cityPulseSubtag}>INTERACTIVE</Text>
               </View>
