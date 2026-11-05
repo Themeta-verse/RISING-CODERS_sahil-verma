@@ -13,6 +13,11 @@ import { SavedScreen } from '../screens/SavedScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { EventDetailScreen } from '../screens/EventDetailScreen';
 import { CityPulseScreen } from '../screens/CityPulseScreen';
+import { BuddyMatchScreen } from '../screens/BuddyMatchScreen';
+import { BuddyMatchRadarScreen } from '../screens/BuddyMatchRadarScreen';
+import { EventCircleDetailScreen } from '../screens/EventCircleDetailScreen';
+import { ChatScreen } from '../screens/ChatScreen';
+import { ConversationsScreen } from '../screens/ConversationsScreen';
 import { RootTabParamList, RootStackParamList } from '../types';
 import { colors, typography } from '../theme';
 
@@ -131,6 +136,41 @@ export const RootNavigator: React.FC = () => {
             component={CityPulseScreen}
             options={{
               animation: 'slide_from_bottom',
+            }}
+          />
+          <Stack.Screen
+            name="BuddyMatch"
+            component={BuddyMatchScreen}
+            options={{
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="BuddyMatchRadar"
+            component={BuddyMatchRadarScreen}
+            options={{
+              animation: 'fade',
+            }}
+          />
+          <Stack.Screen
+            name="EventCircleDetail"
+            component={EventCircleDetailScreen}
+            options={{
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="Chat"
+            component={ChatScreen}
+            options={{
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="Conversations"
+            component={ConversationsScreen}
+            options={{
+              animation: 'slide_from_right',
             }}
           />
         </>

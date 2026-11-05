@@ -235,31 +235,44 @@ export const DiscoverScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* User Avatar with Social Buddy Designed Brand Text */}
+          {/* User Avatar & Messages Inbox */}
           <View style={styles.topRightProfileContainer}>
-            <View style={styles.headerBrandBadge}>
-              <Text style={styles.headerBrandText}>Social Buddy</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.avatarButton}
-              activeOpacity={0.8}
-              onPress={() => {
-                try {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                } catch {}
-                navigation.navigate('Profile');
-              }}
-            >
-              <Image
-                source={{
-                  uri:
-                    user?.avatarUrl ||
-                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            <View style={styles.topRightActionsRow}>
+              <TouchableOpacity
+                style={styles.messagesIconButton}
+                activeOpacity={0.8}
+                onPress={() => {
+                  try {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  } catch {}
+                  navigation.navigate('Conversations');
                 }}
-                style={styles.avatarImage}
-              />
-              <View style={styles.notificationDot} />
-            </TouchableOpacity>
+              >
+                <Ionicons name="chatbubbles-outline" size={19} color={colors.textPrimary} />
+                <View style={styles.messagesBadgeDot} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.avatarButton}
+                activeOpacity={0.8}
+                onPress={() => {
+                  try {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  } catch {}
+                  navigation.navigate('Profile');
+                }}
+              >
+                <Image
+                  source={{
+                    uri:
+                      user?.avatarUrl ||
+                      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+                  }}
+                  style={styles.avatarImage}
+                />
+                <View style={styles.notificationDot} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -318,7 +331,7 @@ export const DiscoverScreen: React.FC = () => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.secondaryFiltersContent}
           >
-            {/* City Pulse 2.5D Isometric Mode Launcher */}
+            {/* City Pulse 3D Mode Launcher */}
             <TouchableOpacity
               style={styles.cityPulseChip}
               onPress={() => {
@@ -331,6 +344,21 @@ export const DiscoverScreen: React.FC = () => {
             >
               <Ionicons name="cube" size={13} color={colors.orangePrimary} />
               <Text style={styles.cityPulseChipText}>City Pulse</Text>
+            </TouchableOpacity>
+
+            {/* Buddy Match & Circles Launcher */}
+            <TouchableOpacity
+              style={styles.buddyMatchChip}
+              onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                } catch {}
+                navigation.navigate('BuddyMatchRadar');
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="radio" size={13} color={colors.amberPrimary} />
+              <Text style={styles.buddyMatchChipText}>Buddy Radar</Text>
             </TouchableOpacity>
 
             {/* Free Only Toggle */}
@@ -578,6 +606,33 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
+  topRightActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  messagesIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: borderRadius.pill,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    position: 'relative',
+  },
+  messagesBadgeDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.orangePrimary,
+    borderWidth: 1.5,
+    borderColor: colors.background,
+  },
   headerBrandBadge: {
     backgroundColor: 'rgba(255, 107, 0, 0.12)',
     paddingHorizontal: 6,
@@ -765,6 +820,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: colors.orangePrimary,
+  },
+  buddyMatchChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: borderRadius.pill,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+  },
+  buddyMatchChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.amberLight,
   },
   filterChip: {
     flexDirection: 'row',

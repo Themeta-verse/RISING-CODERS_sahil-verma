@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,11 +19,24 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, BuddyProfile, EventCircle, ConnectionStatus, BuddyConnectionRequest } from '../types';
 import { useEvents } from '../context/EventsContext';
 import { useLocation } from '../context/LocationContext';
 import { useAuth } from '../context/AuthContext';
 import { calculateDistanceKm, formatDistance } from '../utils/distance';
+import {
+  fetchEventBuddyAttendees,
+  fetchEventCircles,
+  joinEventCircle,
+  leaveEventCircle,
+  sendConnectionRequest,
+  cancelOrRejectConnectionRequest,
+  acceptConnectionRequest,
+  fetchUserConnectionRequests,
+} from '../services/buddyMatchService';
+import { BuddyAttendeeCard } from '../components/BuddyAttendeeCard';
+import { EventCircleCard } from '../components/EventCircleCard';
+import { ConnectNoteModal } from '../components/ConnectNoteModal';
 import { colors, spacing, borderRadius, typography } from '../theme';
 
 const { width } = Dimensions.get('window');
@@ -109,6 +122,183 @@ export const EventDetailScreen: React.FC = () => {
   const isDeadlinePassed = event.registrationDeadline
     ? new Date(event.registrationDeadline).getTime() < Date.now()
     : false;
+
+  // Buddy Match & Community States
+  const [buddies, setBuddies] = useState<BuddyProfile[]>([]);
+  const [eventCircles, setEventCircles] = useState<EventCircle[]>([]);
+  const [userConnections, setUserConnections] = useState<BuddyConnectionRequest[]>([]);
+  const [isCommunityLoading, setIsCommunityLoading] = useState<boolean>(true);
+  const [actionAttendeeId, setActionAttendeeId] = useState<string | null>(null);
+  const [actionCircleId, setActionCircleId] = useState<string | null>(null);
+
+  // Connection Note Modal state
+  const [connectModalVisible, setConnectModalVisible] = useState(false);
+  const [targetConnectAttendee, setTargetConnectAttendee] = useState<BuddyProfile | null>(null);
+  const [isSendingConnectNote, setIsSendingConnectNote] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadCommunity = async () => {
+      if (!event) return;
+      setIsCommunityLoading(true);
+      try {
+        const [attendeeList, circleList, connectionList] = await Promise.all([
+          fetchEventBuddyAttendees(event.id, user?.id),
+          fetchEventCircles(event.id, event.category, user?.id),
+          fetchUserConnectionRequests(user?.id || 'usr-alex-001'),
+        ]);
+        if (isMounted) {
+          setBuddies(attendeeList);
+          setEventCircles(circleList);
+          setUserConnections(connectionList);
+        }
+      } catch (err) {
+        console.warn('Error loading event community:', err);
+      } finally {
+        if (isMounted) setIsCommunityLoading(false);
+      }
+    };
+    loadCommunity();
+    return () => {
+      isMounted = false;
+    };
+  }, [event?.id, user?.id]);
+
+  const connectionMap = useMemo(() => {
+    const map = new Map<string, ConnectionStatus>();
+    const currentUserId = user?.id || 'usr-alex-001';
+    userConnections.forEach((req) => {
+      const otherId = req.senderId === currentUserId ? req.receiverId : req.senderId;
+      if (req.status === 'connected' || req.status === 'accepted') {
+        map.set(otherId, 'connected');
+      } else if (req.senderId === currentUserId) {
+        map.set(otherId, 'pending_outgoing');
+      } else if (req.receiverId === currentUserId) {
+        map.set(otherId, 'pending_incoming');
+      }
+    });
+    return map;
+  }, [userConnections, user?.id]);
+
+  const handleConnectAttendee = (attendee: BuddyProfile) => {
+    setTargetConnectAttendee(attendee);
+    setConnectModalVisible(true);
+  };
+
+  const handleConfirmSendConnect = async (note?: string) => {
+    if (!user || !targetConnectAttendee) return;
+    setIsSendingConnectNote(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    const senderProfile: BuddyProfile = {
+      id: user.id,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+      interests: user.interests || [],
+      attendanceStatus: 'confirmed',
+    };
+    const res = await sendConnectionRequest(
+      user.id,
+      targetConnectAttendee.id,
+      targetConnectAttendee,
+      senderProfile,
+      event.id,
+      note
+    );
+    setIsSendingConnectNote(false);
+    if (res.success) {
+      setConnectModalVisible(false);
+      setTargetConnectAttendee(null);
+      const updated = await fetchUserConnectionRequests(user.id);
+      setUserConnections(updated);
+      Alert.alert('Request Sent 📨', `Connection request sent to ${targetConnectAttendee.name}.\nWaiting for them to accept.`);
+    } else {
+      Alert.alert('Notice', res.error || 'Could not send connection request');
+    }
+  };
+
+  const handleAcceptAttendeeRequest = async (attendee: BuddyProfile) => {
+    if (!user) return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    setActionAttendeeId(attendee.id);
+    const req = userConnections.find(
+      (r) =>
+        (r.senderId === attendee.id || r.receiverId === attendee.id) &&
+        (r.status === 'pending_incoming' || (r.status as string) === 'pending')
+    );
+    if (req) {
+      await acceptConnectionRequest(req.id);
+      const updated = await fetchUserConnectionRequests(user.id);
+      setUserConnections(updated);
+      Alert.alert('Connected 🎉', `You and ${attendee.name} are now connected! You can start a conversation.`);
+    }
+    setActionAttendeeId(null);
+  };
+
+  const handleDeclineAttendeeRequest = async (attendee: BuddyProfile) => {
+    if (!user) return;
+    setActionAttendeeId(attendee.id);
+    const req = userConnections.find(
+      (r) =>
+        (r.senderId === attendee.id || r.receiverId === attendee.id) &&
+        (r.status === 'pending_incoming' || r.status === 'pending_outgoing' || (r.status as string) === 'pending')
+    );
+    if (req) {
+      await cancelOrRejectConnectionRequest(req.id);
+      const updated = await fetchUserConnectionRequests(user.id);
+      setUserConnections(updated);
+    }
+    setActionAttendeeId(null);
+  };
+
+  const handleCancelAttendeeRequest = async (attendee: BuddyProfile) => {
+    Alert.alert(
+      'Cancel Connection Request?',
+      `Are you sure you want to withdraw your request to ${attendee.name}?`,
+      [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Withdraw',
+          style: 'destructive',
+          onPress: async () => {
+            setActionAttendeeId(attendee.id);
+            const req = userConnections.find(
+              (r) =>
+                (r.senderId === attendee.id || r.receiverId === attendee.id) &&
+                (r.status === 'pending_outgoing' || r.status === 'pending_incoming' || (r.status as string) === 'pending')
+            );
+            if (req) {
+              await cancelOrRejectConnectionRequest(req.id);
+            } else {
+              await cancelOrRejectConnectionRequest(attendee.id);
+            }
+            setActionAttendeeId(null);
+            const updated = await fetchUserConnectionRequests(user?.id || 'usr-alex-001');
+            setUserConnections(updated);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleJoinCircleToggle = async (circle: EventCircle) => {
+    if (!user) return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {}
+    setActionCircleId(circle.id);
+    if (circle.isJoined) {
+      await leaveEventCircle(circle.id, user.id);
+    } else {
+      await joinEventCircle(circle.id, user.id);
+    }
+    setActionCircleId(null);
+    const updatedCircles = await fetchEventCircles(event.id, event.category, user.id);
+    setEventCircles(updatedCircles);
+  };
 
   const formatDeadline = (isoString?: string) => {
     if (!isoString) return null;
@@ -553,7 +743,122 @@ export const EventDetailScreen: React.FC = () => {
             )}
           </View>
 
-          {/* Ready-to-Attend Checklist Section */}
+          {/* Buddy Match: Find Your People Section */}
+          <View style={styles.sectionBlock}>
+            <View style={styles.communityHeadingRow}>
+              <View style={styles.headingTitleBlock}>
+                <View style={styles.badgeLabelRow}>
+                  <Text style={styles.sectionHeading}>Find Your People</Text>
+                  <View style={styles.communityCountPill}>
+                    <Text style={styles.communityCountPillText}>{buddies.length} going</Text>
+                  </View>
+                </View>
+                <Text style={styles.communitySubtitle}>
+                  Connect with attendees sharing your interests & topics
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <TouchableOpacity
+                  style={styles.radarPillBtn}
+                  onPress={() => navigation.navigate('BuddyMatchRadar', { eventId: event.id })}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="radio" size={12} color={colors.orangePrimary} />
+                  <Text style={styles.radarPillBtnText}>Radar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.seeAllBtn}
+                  onPress={() => navigation.navigate('BuddyMatch', { eventId: event.id })}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.seeAllBtnText}>See All</Text>
+                  <Ionicons name="chevron-forward" size={13} color={colors.orangePrimary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {isCommunityLoading ? (
+              <ActivityIndicator color={colors.orangePrimary} style={{ marginVertical: 14 }} />
+            ) : buddies.length === 0 ? (
+              <View style={styles.emptyCommunityBox}>
+                <Ionicons name="people-outline" size={24} color={colors.textMuted} />
+                <Text style={styles.emptyCommunityText}>Be the first to join the attendee circle!</Text>
+              </View>
+            ) : (
+              buddies.slice(0, 3).map((attendee) => {
+                const req = userConnections.find(
+                  (r) => r.senderId === attendee.id || r.receiverId === attendee.id
+                );
+                return (
+                  <BuddyAttendeeCard
+                    key={attendee.id}
+                    attendee={attendee}
+                    userInterests={user?.interests}
+                    eventCategory={event.category}
+                    connectionStatus={connectionMap.get(attendee.id) || 'none'}
+                    isProcessing={actionAttendeeId === attendee.id}
+                    requestNote={req?.note}
+                    onConnectPress={handleConnectAttendee}
+                    onCancelPress={handleCancelAttendeeRequest}
+                    onAcceptPress={handleAcceptAttendeeRequest}
+                    onDeclinePress={handleDeclineAttendeeRequest}
+                    onChatPress={(a) => {
+                      const status = connectionMap.get(a.id);
+                      if (status !== 'connected') {
+                        Alert.alert('Not Connected', 'You can only message buddies after a connection request has been accepted.');
+                        return;
+                      }
+                      navigation.navigate('Chat', {
+                        recipientId: a.id,
+                        recipientName: a.name,
+                        recipientAvatar: a.avatarUrl,
+                        eventId: event.id,
+                      });
+                    }}
+                    compact
+                  />
+                );
+              })
+            )}
+          </View>
+
+          {/* Event Circles: Communities Connected to this Event */}
+          {eventCircles.length > 0 && (
+            <View style={styles.sectionBlock}>
+              <View style={styles.communityHeadingRow}>
+                <View style={styles.headingTitleBlock}>
+                  <View style={styles.badgeLabelRow}>
+                    <Text style={styles.sectionHeading}>Event Circles</Text>
+                    <View style={styles.communityCountPill}>
+                      <Text style={styles.communityCountPillText}>{eventCircles.length} active</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.communitySubtitle}>
+                    Pre-event meetups, guidelines & local sub-communities
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.seeAllBtn}
+                  onPress={() => navigation.navigate('BuddyMatch', { eventId: event.id })}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.seeAllBtnText}>Explore</Text>
+                  <Ionicons name="chevron-forward" size={13} color={colors.orangePrimary} />
+                </TouchableOpacity>
+              </View>
+
+              {eventCircles.slice(0, 2).map((circle) => (
+                <EventCircleCard
+                  key={circle.id}
+                  circle={circle}
+                  isJoining={actionCircleId === circle.id}
+                  onPress={(c) => navigation.navigate('EventCircleDetail', { circleId: c.id, eventId: event.id })}
+                  onJoinToggle={handleJoinCircleToggle}
+                />
+              ))}
+            </View>
+          )}
           <View style={styles.sectionBlock}>
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionHeading}>Ready-to-Attend Checklist</Text>
@@ -857,6 +1162,18 @@ export const EventDetailScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Introductory Note Modal for Connection Requests */}
+      <ConnectNoteModal
+        visible={connectModalVisible}
+        targetUser={targetConnectAttendee}
+        isSending={isSendingConnectNote}
+        onSend={handleConfirmSendConnect}
+        onClose={() => {
+          setConnectModalVisible(false);
+          setTargetConnectAttendee(null);
+        }}
+      />
     </View>
   );
 };
@@ -1781,5 +2098,80 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     fontSize: 11,
+  },
+  communityHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  headingTitleBlock: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  badgeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  communityCountPill: {
+    backgroundColor: 'rgba(255, 107, 0, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: borderRadius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 0, 0.3)',
+  },
+  communityCountPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.orangePrimary,
+  },
+  communitySubtitle: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  seeAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    gap: 3,
+  },
+  radarPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: borderRadius.pill,
+    backgroundColor: 'rgba(255, 107, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 0, 0.3)',
+    gap: 4,
+  },
+  radarPillBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.orangePrimary,
+  },
+  seeAllBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.orangePrimary,
+  },
+  emptyCommunityBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  emptyCommunityText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 6,
   },
 });
