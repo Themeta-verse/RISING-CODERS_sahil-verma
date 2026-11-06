@@ -37,7 +37,9 @@ import {
 import { BuddyAttendeeCard } from '../components/BuddyAttendeeCard';
 import { EventCircleCard } from '../components/EventCircleCard';
 import { ConnectNoteModal } from '../components/ConnectNoteModal';
+import { EventPassModal } from '../components/EventPassModal';
 import { colors, spacing, borderRadius, typography } from '../theme';
+import { getCategoryTheme } from '../theme/colors';
 import { getSafeTop, getSafeBottom } from '../utils/safeDimensions';
 
 const { width } = Dimensions.get('window');
@@ -68,8 +70,66 @@ export const EventDetailScreen: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOrganizerModalVisible, setIsOrganizerModalVisible] = useState(false);
+  const [isPassModalVisible, setIsPassModalVisible] = useState(false);
+
+  // Buddy Match & Community States (Must be declared before any early return)
+  const [buddies, setBuddies] = useState<BuddyProfile[]>([]);
+  const [eventCircles, setEventCircles] = useState<EventCircle[]>([]);
+  const [userConnections, setUserConnections] = useState<BuddyConnectionRequest[]>([]);
+  const [isCommunityLoading, setIsCommunityLoading] = useState<boolean>(true);
+  const [actionAttendeeId, setActionAttendeeId] = useState<string | null>(null);
+  const [actionCircleId, setActionCircleId] = useState<string | null>(null);
+
+  // Connection Note Modal state
+  const [connectModalVisible, setConnectModalVisible] = useState(false);
+  const [targetConnectAttendee, setTargetConnectAttendee] = useState<BuddyProfile | null>(null);
+  const [isSendingConnectNote, setIsSendingConnectNote] = useState(false);
 
   const event = getEventById(eventId);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadCommunity = async () => {
+      if (!event) return;
+      setIsCommunityLoading(true);
+      try {
+        const [attendeeList, circleList, connectionList] = await Promise.all([
+          fetchEventBuddyAttendees(event.id, user?.id),
+          fetchEventCircles(event.id, event.category, user?.id),
+          fetchUserConnectionRequests(user?.id || 'usr-alex-001'),
+        ]);
+        if (isMounted) {
+          setBuddies(attendeeList);
+          setEventCircles(circleList);
+          setUserConnections(connectionList);
+        }
+      } catch (err) {
+        console.warn('Error loading event community:', err);
+      } finally {
+        if (isMounted) setIsCommunityLoading(false);
+      }
+    };
+    loadCommunity();
+    return () => {
+      isMounted = false;
+    };
+  }, [event?.id, event?.category, user?.id]);
+
+  const connectionMap = useMemo(() => {
+    const map = new Map<string, ConnectionStatus>();
+    const currentUserId = user?.id || 'usr-alex-001';
+    userConnections.forEach((req) => {
+      const otherId = req.senderId === currentUserId ? req.receiverId : req.senderId;
+      if (req.status === 'connected' || req.status === 'accepted') {
+        map.set(otherId, 'connected');
+      } else if (req.senderId === currentUserId) {
+        map.set(otherId, 'pending_outgoing');
+      } else if (req.receiverId === currentUserId) {
+        map.set(otherId, 'pending_incoming');
+      }
+    });
+    return map;
+  }, [userConnections, user?.id]);
 
   if (!event) {
     return (
@@ -123,63 +183,7 @@ export const EventDetailScreen: React.FC = () => {
   const isFull = spotsLeft === 0;
   const isCancelled = event.status === 'cancelled';
   const isDeadlinePassed = event.isUpcoming === false;
-
-  // Buddy Match & Community States
-  const [buddies, setBuddies] = useState<BuddyProfile[]>([]);
-  const [eventCircles, setEventCircles] = useState<EventCircle[]>([]);
-  const [userConnections, setUserConnections] = useState<BuddyConnectionRequest[]>([]);
-  const [isCommunityLoading, setIsCommunityLoading] = useState<boolean>(true);
-  const [actionAttendeeId, setActionAttendeeId] = useState<string | null>(null);
-  const [actionCircleId, setActionCircleId] = useState<string | null>(null);
-
-  // Connection Note Modal state
-  const [connectModalVisible, setConnectModalVisible] = useState(false);
-  const [targetConnectAttendee, setTargetConnectAttendee] = useState<BuddyProfile | null>(null);
-  const [isSendingConnectNote, setIsSendingConnectNote] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadCommunity = async () => {
-      if (!event) return;
-      setIsCommunityLoading(true);
-      try {
-        const [attendeeList, circleList, connectionList] = await Promise.all([
-          fetchEventBuddyAttendees(event.id, user?.id),
-          fetchEventCircles(event.id, event.category, user?.id),
-          fetchUserConnectionRequests(user?.id || 'usr-alex-001'),
-        ]);
-        if (isMounted) {
-          setBuddies(attendeeList);
-          setEventCircles(circleList);
-          setUserConnections(connectionList);
-        }
-      } catch (err) {
-        console.warn('Error loading event community:', err);
-      } finally {
-        if (isMounted) setIsCommunityLoading(false);
-      }
-    };
-    loadCommunity();
-    return () => {
-      isMounted = false;
-    };
-  }, [event?.id, user?.id]);
-
-  const connectionMap = useMemo(() => {
-    const map = new Map<string, ConnectionStatus>();
-    const currentUserId = user?.id || 'usr-alex-001';
-    userConnections.forEach((req) => {
-      const otherId = req.senderId === currentUserId ? req.receiverId : req.senderId;
-      if (req.status === 'connected' || req.status === 'accepted') {
-        map.set(otherId, 'connected');
-      } else if (req.senderId === currentUserId) {
-        map.set(otherId, 'pending_outgoing');
-      } else if (req.receiverId === currentUserId) {
-        map.set(otherId, 'pending_incoming');
-      }
-    });
-    return map;
-  }, [userConnections, user?.id]);
+  const catTheme = getCategoryTheme(event.category);
 
   const handleConnectAttendee = (attendee: BuddyProfile) => {
     setTargetConnectAttendee(attendee);
@@ -372,7 +376,7 @@ export const EventDetailScreen: React.FC = () => {
       setIsSubmitting(false);
 
       if (result.success) {
-        Alert.alert('Registration Confirmed! 🎉', result.message || 'Your seat has been reserved.');
+        setIsPassModalVisible(true);
       } else {
         Alert.alert('Registration Failed', result.error || result.message || 'Could not complete registration.');
       }
@@ -494,8 +498,22 @@ export const EventDetailScreen: React.FC = () => {
         <View style={styles.body}>
           {/* Badge Row */}
           <View style={styles.badgeRow}>
-            <View style={styles.categoryPill}>
-              <Text style={styles.categoryPillText}>{event.category}</Text>
+            <View
+              style={[
+                styles.categoryPill,
+                {
+                  backgroundColor: catTheme.badgeBg,
+                  borderColor: catTheme.badgeBorder,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                },
+              ]}
+            >
+              <Ionicons name={catTheme.icon as any} size={11} color={catTheme.primary} />
+              <Text style={[styles.categoryPillText, { color: catTheme.primary }]}>
+                {catTheme.tag}
+              </Text>
             </View>
 
             {/* Event Lifecycle Status */}
@@ -1013,21 +1031,37 @@ export const EventDetailScreen: React.FC = () => {
               <Text style={styles.buttonDisabledText}>Event Cancelled</Text>
             </View>
           ) : rsvpd ? (
-            <TouchableOpacity
-              style={[styles.rsvpButton, styles.rsvpButtonActive]}
-              onPress={handleCancelRegistration}
-              disabled={isSubmitting}
-              activeOpacity={0.85}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color={colors.orangePrimary} />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={18} color={colors.orangePrimary} />
-                  <Text style={styles.rsvpButtonTextActive}>Seat Confirmed</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <TouchableOpacity
+                style={styles.viewPassSmallBtn}
+                onPress={() => {
+                  try {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  } catch {}
+                  setIsPassModalVisible(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="sparkles" size={15} color="#FF6B00" />
+                <Text style={styles.viewPassSmallBtnText}>Vibe Pass</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.rsvpButton, styles.rsvpButtonActive, { minWidth: 120 }]}
+                onPress={handleCancelRegistration}
+                disabled={isSubmitting}
+                activeOpacity={0.85}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color={colors.orangePrimary} />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={16} color={colors.orangePrimary} />
+                    <Text style={styles.rsvpButtonTextActive}>Confirmed</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           ) : isFull ? (
             <View style={[styles.rsvpButton, styles.buttonDisabled]}>
               <Ionicons name="people" size={18} color={colors.textMuted} />
@@ -1175,6 +1209,20 @@ export const EventDetailScreen: React.FC = () => {
           setTargetConnectAttendee(null);
         }}
       />
+
+      {/* Holographic Category Vibe Pass Modal */}
+      {event && (
+        <EventPassModal
+          visible={isPassModalVisible}
+          event={event}
+          userName={user?.name || 'Alex Mercer'}
+          onClose={() => setIsPassModalVisible(false)}
+          onViewInMyEvents={() => {
+            // @ts-ignore
+            navigation.navigate('MainTabs', { screen: 'Saved' });
+          }}
+        />
+      )}
     </View>
   );
 };
@@ -1940,6 +1988,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.orangePrimary,
+  },
+  viewPassSmallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 107, 0, 0.15)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md - 2,
+    borderRadius: borderRadius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 0, 0.4)',
+  },
+  viewPassSmallBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FF6B00',
   },
   rsvpButtonText: {
     ...typography.bodyBold,

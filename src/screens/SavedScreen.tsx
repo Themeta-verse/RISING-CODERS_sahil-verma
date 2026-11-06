@@ -17,7 +17,8 @@ import * as Haptics from 'expo-haptics';
 import { useEvents } from '../context/EventsContext';
 import { useAuth } from '../context/AuthContext';
 import { ReferenceEventCard } from '../components/ReferenceEventCard';
-import { RootStackParamList } from '../types';
+import { EventPassModal } from '../components/EventPassModal';
+import { RootStackParamList, HyperlocalEvent } from '../types';
 import { colors, spacing, borderRadius } from '../theme';
 import { getSafeTop, getScrollBottomPadding } from '../utils/safeDimensions';
 
@@ -35,6 +36,7 @@ export const SavedScreen: React.FC = () => {
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<MyEventsTab>('saved');
+  const [selectedPassEvent, setSelectedPassEvent] = useState<HyperlocalEvent | null>(null);
 
   const savedEvents = allEvents.filter((event) => savedIds.includes(event.id));
   const upcomingEvents = allEvents.filter(
@@ -234,10 +236,22 @@ export const SavedScreen: React.FC = () => {
           currentList.map((event) => (
             <View key={event.id} style={styles.cardWrapper}>
               {activeTab === 'upcoming' && (
-                <View style={styles.upcomingBadgeRow}>
-                  <Ionicons name="shield-checkmark" size={12} color={colors.orangePrimary} />
-                  <Text style={styles.upcomingBadgeText}>SEAT RESERVED • TAP FOR PASS</Text>
-                </View>
+                <TouchableOpacity
+                  style={styles.upcomingBadgeRow}
+                  onPress={() => {
+                    try {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    } catch {}
+                    setSelectedPassEvent(event);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="sparkles" size={13} color="#FF6B00" />
+                    <Text style={styles.upcomingBadgeText}>SEAT RESERVED • TAP FOR VIBE PASS</Text>
+                  </View>
+                  <Ionicons name="qr-code-outline" size={16} color="#FF6B00" />
+                </TouchableOpacity>
               )}
               {activeTab === 'attended' && (
                 <View style={styles.attendedBadgeRow}>
@@ -256,6 +270,12 @@ export const SavedScreen: React.FC = () => {
           ))
         )}
       </ScrollView>
+      <EventPassModal
+        visible={!!selectedPassEvent}
+        event={selectedPassEvent}
+        attendeeName={user?.name || 'Explorer'}
+        onClose={() => setSelectedPassEvent(null)}
+      />
     </View>
   );
 };

@@ -1,60 +1,110 @@
+import { colors as backupColors } from '../theme_backup/colors';
+
 export const colors = {
-  // Backgrounds & Obsidian Surfaces
+  ...backupColors,
+
+  // Enhanced Obsidian & Glassmorphism Surfaces
   background: '#07080B',
-  surfacePrimary: '#10121A',
-  surfaceSecondary: '#161924',
-  surfaceElevated: '#1D212F',
-  surfaceCard: '#13151F',
+  surfacePrimary: '#0E1017',
+  surfaceSecondary: '#141722',
+  surfaceElevated: '#1A1E2C',
+  surfaceCard: '#11141E',
   surfaceCardSubtle: 'rgba(255, 255, 255, 0.04)',
+  surfaceGlass: 'rgba(18, 21, 31, 0.78)',
+  surfaceGlassElevated: 'rgba(26, 30, 44, 0.88)',
 
-  // Borders & Dividers
-  borderSubtle: '#1C202C',
-  borderProminent: '#2A3042',
-  borderOrange: 'rgba(255, 107, 0, 0.35)',
-  borderGlow: 'rgba(255, 107, 0, 0.35)',
-  borderGold: 'rgba(245, 158, 11, 0.3)',
+  // Luminous Edge Highlights
+  borderSubtle: 'rgba(255, 255, 255, 0.08)',
+  borderProminent: 'rgba(255, 255, 255, 0.16)',
+  borderGlass: 'rgba(255, 255, 255, 0.12)',
 
-  // Brand Warm Orange & Amber Accents (matching reference image)
-  orangePrimary: '#FF6B00',
-  orangeSunset: '#FF5E3A',
-  orangeLight: '#FF8A3D',
-  orangeGlow: 'rgba(255, 107, 0, 0.3)',
-  amberPrimary: '#F59E0B',
-  amberLight: '#FBBF24',
-  amberDark: '#D97706',
-  amberGlow: 'rgba(245, 158, 11, 0.2)',
-
-  // Primary brand accent is now warm orange
-  primary: '#FF6B00',
-
-  // Gradient Presets for Event Cards
-  gradients: {
-    sunset: ['#FF5E3A', '#D9381E', 'rgba(7, 8, 11, 0.96)'] as const,
-    electricBlue: ['#00C6FF', '#7028E4', 'rgba(7, 8, 11, 0.96)'] as const,
-    cyberPurple: ['#A855F7', '#6366F1', 'rgba(7, 8, 11, 0.96)'] as const,
-    warmAmber: ['#F59E0B', '#EA580C', 'rgba(7, 8, 11, 0.96)'] as const,
-    emeraldTeal: ['#10B981', '#0D9488', 'rgba(7, 8, 11, 0.96)'] as const,
-    coralRose: ['#FF416C', '#FF4B2B', 'rgba(7, 8, 11, 0.96)'] as const,
-    cardDarkOverlay: ['rgba(0,0,0,0.1)', 'rgba(7, 8, 11, 0.65)', '#07080B'] as const,
+  // Category-Adaptive Accent Palettes
+  category: {
+    // 1. Music & Concerts (Neon Cyber Electric)
+    music: {
+      primary: '#FF2E7E',
+      secondary: '#8B5CF6',
+      glow: 'rgba(255, 46, 126, 0.35)',
+      gradient: ['#FF2E7E', '#7928CA', 'rgba(7, 8, 11, 0.95)'] as const,
+      badgeBg: 'rgba(255, 46, 126, 0.15)',
+      badgeBorder: 'rgba(255, 46, 126, 0.4)',
+      tag: 'LIVE CONCERT',
+      icon: 'musical-notes',
+    },
+    // 2. Hackathons & Tech Sprints (Matrix Cyber Cyan / Mint)
+    hackathons: {
+      primary: '#00F0FF',
+      secondary: '#0072FF',
+      glow: 'rgba(0, 240, 255, 0.35)',
+      gradient: ['#00F0FF', '#0072FF', 'rgba(7, 8, 11, 0.95)'] as const,
+      badgeBg: 'rgba(0, 240, 255, 0.14)',
+      badgeBorder: 'rgba(0, 240, 255, 0.4)',
+      tag: 'TECH HACKATHON',
+      icon: 'code-slash',
+    },
+    // 3. Competitions & Sports (Electric Gold / Amber Arena)
+    competitions: {
+      primary: '#FFB800',
+      secondary: '#FF5E00',
+      glow: 'rgba(255, 184, 0, 0.35)',
+      gradient: ['#FFB800', '#FF5E00', 'rgba(7, 8, 11, 0.95)'] as const,
+      badgeBg: 'rgba(255, 184, 0, 0.15)',
+      badgeBorder: 'rgba(255, 184, 0, 0.4)',
+      tag: 'ARENA & PRIZE',
+      icon: 'trophy',
+    },
+    // 4. Workshops & Design Labs (Emerald Neural Flow)
+    workshops: {
+      primary: '#10B981',
+      secondary: '#06B6D4',
+      glow: 'rgba(16, 185, 129, 0.35)',
+      gradient: ['#10B981', '#06B6D4', 'rgba(7, 8, 11, 0.95)'] as const,
+      badgeBg: 'rgba(16, 185, 129, 0.15)',
+      badgeBorder: 'rgba(16, 185, 129, 0.4)',
+      tag: 'HANDS-ON WORKSHOP',
+      icon: 'laptop-outline',
+    },
+    // 5. Comedy & Meetups (Sunset Warm Amber)
+    meetups: {
+      primary: '#FF6B00',
+      secondary: '#F59E0B',
+      glow: 'rgba(255, 107, 0, 0.35)',
+      gradient: ['#FF6B00', '#D9381E', 'rgba(7, 8, 11, 0.95)'] as const,
+      badgeBg: 'rgba(255, 107, 0, 0.15)',
+      badgeBorder: 'rgba(255, 107, 0, 0.4)',
+      tag: 'COMMUNITY MEET',
+      icon: 'people',
+    },
+    // 6. Parties & Nightlife (Electric Ultraviolet)
+    parties: {
+      primary: '#A855F7',
+      secondary: '#EC4899',
+      glow: 'rgba(168, 85, 247, 0.35)',
+      gradient: ['#A855F7', '#EC4899', 'rgba(7, 8, 11, 0.95)'] as const,
+      badgeBg: 'rgba(168, 85, 247, 0.15)',
+      badgeBorder: 'rgba(168, 85, 247, 0.4)',
+      tag: 'NIGHTLIFE & PARTY',
+      icon: 'sparkles',
+    },
   },
+};
 
-  // Semantic & Auxiliary Colors
-  success: '#10B981',
-  info: '#38BDF8',
-  danger: '#EF4444',
-  tagPurple: '#8B5CF6',
-  tagTeal: '#14B8A6',
-
-  // Typography
-  textPrimary: '#FFFFFF',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
-  textDisabled: '#475569',
-  textOnPrimary: '#07080B',
-  textOnAmber: '#07080B',
-
-  // Overlays
-  overlayGradientStart: 'transparent',
-  overlayGradientEnd: 'rgba(7, 8, 11, 0.95)',
-  backdrop: 'rgba(0, 0, 0, 0.85)',
+export const getCategoryTheme = (category?: string) => {
+  const cat = (category || '').toLowerCase();
+  if (cat.includes('music') || cat.includes('concert') || cat.includes('band')) {
+    return colors.category.music;
+  }
+  if (cat.includes('hack') || cat.includes('tech') || cat.includes('coding') || cat.includes('dev')) {
+    return colors.category.hackathons;
+  }
+  if (cat.includes('sport') || cat.includes('compet') || cat.includes('arena') || cat.includes('tourn')) {
+    return colors.category.competitions;
+  }
+  if (cat.includes('workshop') || cat.includes('college') || cat.includes('design') || cat.includes('learn')) {
+    return colors.category.workshops;
+  }
+  if (cat.includes('party') || cat.includes('night') || cat.includes('club') || cat.includes('dj')) {
+    return colors.category.parties;
+  }
+  return colors.category.meetups;
 };

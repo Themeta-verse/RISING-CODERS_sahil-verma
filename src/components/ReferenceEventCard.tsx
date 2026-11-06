@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { HyperlocalEvent } from '../types';
 import { colors, spacing, borderRadius } from '../theme';
+import { getCategoryTheme } from '../theme/colors';
 import { getResponsiveCardDimensions } from '../utils/safeDimensions';
 
 interface ReferenceEventCardProps {
@@ -115,7 +116,8 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
     };
   }, [event, userInterests, matchExplanation]);
 
-  const gradientColors = event.gradientColors || colors.gradients.sunset;
+  const catTheme = getCategoryTheme(event.category);
+  const gradientColors = event.gradientColors || catTheme.gradient;
 
   return (
     <Animated.View
@@ -229,12 +231,28 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
             )}
           </View>
 
-          {/* Category Label (e.g. "Art Gallery" as in reference) */}
-          <Text style={styles.categoryLabel}>
-            {event.venue || event.category}
-          </Text>
+          {/* Category Pill with Adaptive Theme Icon & Accent */}
+          <View style={[styles.categoryBadgeRow, { marginBottom: 4 }]}>
+            <View
+              style={[
+                styles.categoryThemePill,
+                {
+                  backgroundColor: catTheme.badgeBg,
+                  borderColor: catTheme.badgeBorder,
+                },
+              ]}
+            >
+              <Ionicons name={catTheme.icon as any} size={11} color={catTheme.primary} />
+              <Text style={[styles.categoryThemeText, { color: catTheme.primary }]}>
+                {catTheme.tag}
+              </Text>
+            </View>
+            <Text style={styles.categoryVenueText} numberOfLines={1}>
+              {event.venue || event.category}
+            </Text>
+          </View>
 
-          {/* Huge Bold Title (e.g. "Cevin Sephora") */}
+          {/* Huge Bold Title */}
           <Text style={styles.titleText} numberOfLines={2}>
             {event.title}
           </Text>
@@ -357,6 +375,31 @@ const styles = StyleSheet.create({
     right: 0,
     padding: spacing.md + 2,
     zIndex: 2,
+  },
+  categoryBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  categoryThemePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: borderRadius.pill,
+    borderWidth: 1,
+  },
+  categoryThemeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  categoryVenueText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.75)',
+    flex: 1,
   },
   categoryLabel: {
     fontSize: 11,
