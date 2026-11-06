@@ -247,13 +247,13 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
               style={[
                 styles.categoryThemePill,
                 {
-                  backgroundColor: catTheme.badgeBg,
-                  borderColor: catTheme.badgeBorder,
+                  backgroundColor: `${primaryAccent}24`,
+                  borderColor: `${primaryAccent}55`,
                 },
               ]}
             >
-              <Ionicons name={catTheme.icon as any} size={11} color={catTheme.primary} />
-              <Text style={[styles.categoryThemeText, { color: catTheme.primary }]}>
+              <Ionicons name={catTheme.icon as any} size={11} color={primaryAccent} />
+              <Text style={[styles.categoryThemeText, { color: primaryAccent }]}>
                 {catTheme.tag}
               </Text>
             </View>

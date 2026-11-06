@@ -396,9 +396,9 @@ export const EventsCalendarScreen: React.FC = () => {
               </Text>
             </View>
           ) : (
-            selectedEvents.map((event) => (
+            selectedEvents.map((event, idx) => (
               <TouchableOpacity
-                key={event.id}
+                key={`${event.id}-${idx}`}
                 style={styles.eventRowCard}
                 onPress={() => handleEventPress(event.id)}
                 activeOpacity={0.85}

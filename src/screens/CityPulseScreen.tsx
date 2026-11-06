@@ -703,11 +703,11 @@ export const CityPulseScreen: React.FC<CityPulseScreenProps> = ({
               </View>
             </View>
           ) : (
-            filteredEvents.map((ev) => {
+            filteredEvents.map((ev, idx) => {
               const dist = calculateDistanceKm(centerCoordinates, ev.coordinates);
               return (
                 <TouchableOpacity
-                  key={ev.id}
+                  key={`${ev.id}-${idx}`}
                   style={styles.feedCard}
                   onPress={() => handleEventPress(ev.id)}
                   activeOpacity={0.88}
@@ -814,11 +814,11 @@ export const CityPulseScreen: React.FC<CityPulseScreenProps> = ({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.trayCarouselContent}
           >
-            {filteredEvents.map((ev) => {
+            {filteredEvents.map((ev, idx) => {
               const dist = calculateDistanceKm(centerCoordinates, ev.coordinates);
               return (
                 <TouchableOpacity
-                  key={ev.id}
+                  key={`${ev.id}-${idx}`}
                   style={styles.miniCard}
                   onPress={() => {
                     try {

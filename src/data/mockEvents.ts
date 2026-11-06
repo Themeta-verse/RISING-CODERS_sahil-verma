@@ -74,7 +74,7 @@ export const MOCK_EVENTS: HyperlocalEvent[] = [
     registeredCount: 375,
     status: 'published',
     votedCount: 2400,
-    gradientColors: ['#6366F1', '#EC4899', 'rgba(7, 8, 11, 0.96)'],
+    gradientColors: ['#1D4ED8', '#00D2FF', 'rgba(7, 8, 11, 0.96)'],
     buddiesAttending: [
       { id: 'u1', name: 'Aria', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120' },
       { id: 'u2', name: 'Dev', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120' },
@@ -117,7 +117,7 @@ export const MOCK_EVENTS: HyperlocalEvent[] = [
     registeredCount: 45,
     status: 'published',
     votedCount: 420,
-    gradientColors: ['#8A2387', '#E94057', 'rgba(7, 8, 11, 0.96)'],
+    gradientColors: ['#FFB800', '#FF5400', 'rgba(7, 8, 11, 0.96)'],
     buddiesAttending: [
       { id: 'u1', name: 'Aria', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120' },
       { id: 'u2', name: 'Dev', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120' },
@@ -160,7 +160,7 @@ export const MOCK_EVENTS: HyperlocalEvent[] = [
     registeredCount: 113,
     status: 'published',
     votedCount: 1250,
-    gradientColors: ['#EC4899', '#8B5CF6', 'rgba(7, 8, 11, 0.96)'],
+    gradientColors: ['#00C6FF', '#7928CA', 'rgba(7, 8, 11, 0.96)'],
     buddiesAttending: [
       { id: 'u1', name: 'Aria', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120' },
       { id: 'u2', name: 'Dev', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120' },
@@ -1344,7 +1344,7 @@ export const MOCK_EVENTS: HyperlocalEvent[] = [
   },
 
   {
-    id: '22222222-0000-0000-0000-000000000030',
+    id: '22222222-0000-0000-0000-000000000051',
     title: "Kalyan Heritage Hackathon & Maker Summit 2027",
     tagline: "48h hardware robotics and edge IoT hackathon in East MMR",
     description: "Join 300+ university engineers, makers, and spatial computing designers building connected hardware, drone telemetry, and sustainable smart infrastructure prototypes.",
@@ -1368,7 +1368,7 @@ export const MOCK_EVENTS: HyperlocalEvent[] = [
     registeredCount: 290,
     status: 'published',
     votedCount: 1650,
-    gradientColors: ['#8B5CF6', '#EC4899', 'rgba(7, 8, 11, 0.96)'],
+    gradientColors: ['#8B5CF6', '#06B6D4', 'rgba(7, 8, 11, 0.96)'],
     buddiesAttending: [
       { id: 'u1', name: 'Aria', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120' },
       { id: 'u2', name: 'Dev', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120' },
@@ -1387,7 +1387,7 @@ export const MOCK_EVENTS: HyperlocalEvent[] = [
     isVerifiedRealWorld: false,
   },
   {
-    id: '22222222-0000-0000-0000-000000000031',
+    id: '22222222-0000-0000-0000-000000000052',
     title: "Vasai Fort Heritage Cycling & Photo Quest",
     tagline: "Coastal sunrise trail and architectural photo expedition",
     description: "Pedal along scenic Vasai salt pans, explore 16th-century Portuguese ramparts, and capture golden hour silhouettes with Mumbai street and architecture photographers.",
@@ -1430,7 +1430,7 @@ export const MOCK_EVENTS: HyperlocalEvent[] = [
     isVerifiedRealWorld: false,
   },
   {
-    id: '22222222-0000-0000-0000-000000000032',
+    id: '22222222-0000-0000-0000-000000000053',
     title: "Panvel Speed Circuit: Superbike & Auto Expo",
     tagline: "High-octane motorcycle showcase, stunt arena & tuned cars",
     description: "Maharashtra largest superbike gathering featuring custom builders, track day safety sessions, dyno competitions, and live performance automotive exhibitions.",
@@ -1454,7 +1454,7 @@ export const MOCK_EVENTS: HyperlocalEvent[] = [
     registeredCount: 620,
     status: 'published',
     votedCount: 3100,
-    gradientColors: ['#FFB800', '#FF3366', 'rgba(7, 8, 11, 0.96)'],
+    gradientColors: ['#FFB800', '#FF5400', 'rgba(7, 8, 11, 0.96)'],
     buddiesAttending: [
       { id: 'u1', name: 'Aria', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120' },
       { id: 'u2', name: 'Dev', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120' },
@@ -1473,7 +1473,7 @@ export const MOCK_EVENTS: HyperlocalEvent[] = [
     isVerifiedRealWorld: false,
   },
   {
-    id: '22222222-0000-0000-0000-000000000033',
+    id: '22222222-0000-0000-0000-000000000054',
     title: "Alibaug Sunset Beach Music Carnival",
     tagline: "Open-air indie bands, beachside bonfire & acoustic stage",
     description: "Escape the city for a two-stage seaside music festival along the Arabian shoreline. Features top indie artists, craft food stalls, and sunset acoustic jam circles.",
@@ -1516,7 +1516,7 @@ export const MOCK_EVENTS: HyperlocalEvent[] = [
     isVerifiedRealWorld: false,
   },
   {
-    id: '22222222-0000-0000-0000-000000000034',
+    id: '22222222-0000-0000-0000-000000000055',
     title: "Lonavala Highland Cloud & Founder Retreat",
     tagline: "Full-day tech retreat, keynote panels & founder roundtables",
     description: "Immersive weekend summit in the Western Ghats hills connecting AI founders, product leaders, and investors. High-bandwidth networking, masterclasses, and bonfire dinner.",
@@ -1540,7 +1540,7 @@ export const MOCK_EVENTS: HyperlocalEvent[] = [
     registeredCount: 210,
     status: 'published',
     votedCount: 1400,
-    gradientColors: ['#A855F7', '#EC4899', 'rgba(7, 8, 11, 0.96)'],
+    gradientColors: ['#7C3AED', '#2563EB', 'rgba(7, 8, 11, 0.96)'],
     buddiesAttending: [
       { id: 'u1', name: 'Aria', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120' },
       { id: 'u2', name: 'Dev', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120' },

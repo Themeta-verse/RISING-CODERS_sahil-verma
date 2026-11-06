@@ -263,9 +263,9 @@ export const RadarScreen: React.FC = () => {
               </Text>
             </View>
           ) : (
-            radarEvents.map((event) => (
+            radarEvents.map((event, idx) => (
               <TouchableOpacity
-                key={event.id}
+                key={`${event.id}-${idx}`}
                 style={styles.eventRow}
                 onPress={() =>
                   navigation.navigate('EventDetail', { eventId: event.id })

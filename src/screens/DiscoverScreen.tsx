@@ -647,9 +647,9 @@ export const DiscoverScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         ) : (
-          scoredEvents.map(({ event, matchExplanation }) => (
+          scoredEvents.map(({ event, matchExplanation }, idx) => (
             <ReferenceEventCard
-              key={event.id}
+              key={`${event.id}-${idx}`}
               event={event}
               isSaved={isSaved(event.id)}
               userInterests={user?.interests || []}
