@@ -6,7 +6,8 @@ export type EventCategory =
   | 'College'
   | 'Sports'
   | 'Meetups'
-  | 'Parties';
+  | 'Parties'
+  | 'Hackathons';
 
 export interface Coordinates {
   latitude: number;

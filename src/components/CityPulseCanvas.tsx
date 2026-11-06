@@ -36,6 +36,7 @@ interface CityPulseCanvasProps {
   isUserDistant?: boolean;
   onRecenter?: () => void;
   recenterTrigger?: number;
+  zoomLevel?: number;
 }
 
 // Procedural stylized isometric buildings around the hub core
@@ -77,6 +78,7 @@ export const CityPulseCanvas: React.FC<CityPulseCanvasProps> = ({
   isUserDistant = false,
   onRecenter,
   recenterTrigger,
+  zoomLevel = 1.0,
 }) => {
   // Panning offset state with animated values for smooth gestures
   const panX = useRef(new Animated.Value(0)).current;
@@ -208,10 +210,11 @@ export const CityPulseCanvas: React.FC<CityPulseCanvasProps> = ({
     handleRecenter();
   }, [centerCoordinates.latitude, centerCoordinates.longitude]);
 
-  // Dynamically compute optimal viewport scale
+  // Dynamically compute optimal viewport scale with interactive zoom factor
   const optimalScale = useMemo(() => {
-    return getOptimalScale(events, centerCoordinates, viewportWidth, viewportHeight, 80);
-  }, [events, centerCoordinates, viewportWidth, viewportHeight]);
+    const base = getOptimalScale(events, centerCoordinates, viewportWidth, viewportHeight, 80);
+    return base * (zoomLevel ?? 1.0);
+  }, [events, centerCoordinates, viewportWidth, viewportHeight, zoomLevel]);
 
   // Viewport configuration
   const viewportConfig: CityPulseViewportConfig = useMemo(() => {

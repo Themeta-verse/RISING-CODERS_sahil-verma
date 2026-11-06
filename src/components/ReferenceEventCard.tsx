@@ -117,7 +117,11 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
   }, [event, userInterests, matchExplanation]);
 
   const catTheme = getCategoryTheme(event.category);
-  const gradientColors = catTheme.gradient;
+  const primaryAccent = (event.gradientColors && event.gradientColors[0]) || catTheme.primary;
+  const secondaryAccent = (event.gradientColors && event.gradientColors[1]) || catTheme.secondary;
+  const gradientColors = (event.gradientColors && event.gradientColors.length >= 2)
+    ? [event.gradientColors[0], event.gradientColors[1]]
+    : [catTheme.gradient[0], catTheme.gradient[1]];
 
   return (
     <Animated.View
@@ -138,7 +142,7 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
         style={[
           styles.touchableCard,
           {
-            borderColor: `${catTheme.primary}4D`,
+            borderColor: `${primaryAccent}55`,
             borderWidth: 1.5,
           },
         ]}

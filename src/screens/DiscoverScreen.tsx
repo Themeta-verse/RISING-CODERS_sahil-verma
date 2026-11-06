@@ -27,7 +27,6 @@ import { useAuth } from '../context/AuthContext';
 import { calculateDistanceKm } from '../utils/distance';
 import {
   RootStackParamList,
-  HyperlocalEvent,
   EventFormatFilter,
   DateFilterOption,
 } from '../types';
@@ -71,6 +70,13 @@ const DATE_OPTIONS: DateFilterOption[] = [
   'This Weekend',
   'This Week',
 ];
+
+// Explicit headliner pinning: 1) Techfest Vanguard, 2) Mira Road Standup, 3) Neon Horizon
+const PINNED_HEADLINER_ORDER: Record<string, number> = {
+  '22222222-0000-0000-0000-000000000006': 1, // Techfest Vanguard: Robotics & AI Hack (Top #1)
+  '22222222-0000-0000-0000-000000000012': 2, // Mira Road Standup & Improv Night (#2)
+  '22222222-0000-0000-0000-000000000004': 3, // Neon Horizon: Rooftop Audiovisual Showcase (#3)
+};
 
 export const DiscoverScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -191,6 +197,15 @@ export const DiscoverScreen: React.FC = () => {
         };
       })
       .sort((a, b) => {
+        // Priority 0: Pinned sequence (Techfest #1, Mira Road #2, Neon Horizon #3) on default stream
+        if (!searchQuery.trim() && selectedTag === 'All') {
+          const pinA = PINNED_HEADLINER_ORDER[a.event.id] ?? 999;
+          const pinB = PINNED_HEADLINER_ORDER[b.event.id] ?? 999;
+          if (pinA !== pinB) {
+            return pinA - pinB;
+          }
+        }
+
         // Primary: Personalized Score descending
         if (b.score !== a.score) {
           return b.score - a.score;
@@ -210,7 +225,7 @@ export const DiscoverScreen: React.FC = () => {
         // Stable deterministic tie-breaker: ID ascending
         return a.event.id.localeCompare(b.event.id);
       });
-  }, [filteredEvents, user?.interests]);
+  }, [filteredEvents, user?.interests, searchQuery, selectedTag]);
 
   // Compute dynamic ambient background glow based on active visible card
   const activeGlowColor = useMemo(() => {
@@ -243,9 +258,10 @@ export const DiscoverScreen: React.FC = () => {
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetY = event.nativeEvent.contentOffset.y;
+    // Parallel responsive tracking: as soon as card crosses halfway, background glow updates synchronously
     const index = Math.max(
       0,
-      Math.min(scoredEvents.length - 1, Math.floor((offsetY + 120) / cardInterval))
+      Math.min(scoredEvents.length - 1, Math.round(offsetY / cardInterval))
     );
     if (index !== activeCardIndex) {
       setActiveCardIndex(index);
@@ -600,7 +616,7 @@ export const DiscoverScreen: React.FC = () => {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottom }]}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
-        scrollEventThrottle={16}
+        scrollEventThrottle={8}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}

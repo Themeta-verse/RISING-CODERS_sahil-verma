@@ -186,9 +186,9 @@ export const RadarScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Range Selector Pills */}
+        {/* Range Selector Pills (Now supports 35 km and 50 km radius) */}
         <View style={styles.rangeSelectorRow}>
-          {[3, 5, 10, 20, 35].map((km) => (
+          {[3, 5, 10, 20, 35, 50].map((km) => (
             <TouchableOpacity
               key={km}
               style={[styles.rangePill, radarRangeKm === km && styles.rangePillActive]}
