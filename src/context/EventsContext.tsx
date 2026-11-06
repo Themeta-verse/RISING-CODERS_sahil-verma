@@ -108,23 +108,28 @@ export const EventsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         if (fetchResult.events && fetchResult.events.length > 0) {
           setRemoteEvents(fetchResult.events);
-          if (fetchResult.error && fetchResult.isDemoFallback) {
-            setRefreshError(fetchResult.error);
-          }
+          // Do not display internal java network exceptions when events are safely available
+          setRefreshError(null);
           return { success: true, count: fetchResult.events.length };
         } else if (fetchResult.error) {
-          // Network failure: retain existing events and report error gracefully
-          setRefreshError(fetchResult.error);
+          // Only show friendly notice if no events are available
+          if (remoteEvents.length === 0) {
+            setRefreshError('Unable to connect to live server. Showing cached events.');
+          } else {
+            setRefreshError(null);
+          }
           return { success: false, error: fetchResult.error };
         }
 
         return { success: true, count: remoteEvents.length };
       } catch (e: any) {
-        const errorMsg = e?.message || 'Network request failed';
         console.warn('Failed to refresh events from remote source:', e);
-        // Retain existing events on network failures!
-        setRefreshError(errorMsg);
-        return { success: false, error: errorMsg };
+        if (remoteEvents.length === 0) {
+          setRefreshError('Offline mode. Showing cached events.');
+        } else {
+          setRefreshError(null);
+        }
+        return { success: false, error: e?.message || 'Network request failed' };
       } finally {
         isRefreshingRef.current = false;
         setIsRefreshingEvents(false);

@@ -30,6 +30,7 @@ import { isSupabaseConfigured } from '../services/supabase';
 import { fetchLiveHyperlocalEvents, subscribeToLiveEvents } from '../services/liveEventService';
 import { DEFAULT_USER_COORDINATES } from '../data/mockEvents';
 import { colors, spacing, borderRadius } from '../theme';
+import { getSafeTop } from '../utils/safeDimensions';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -376,7 +377,7 @@ export const CityPulseScreen: React.FC<CityPulseScreenProps> = ({
       <View
         style={[
           styles.topHudContainer,
-          { paddingTop: Math.max(insets.top, 16) + 8 },
+          { paddingTop: getSafeTop(insets.top) + 8 },
         ]}
         pointerEvents="box-none"
       >

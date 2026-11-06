@@ -39,6 +39,7 @@ import {
   calculatePersonalizedEventScore,
 } from '../services/liveEventService';
 import { colors, spacing, borderRadius } from '../theme';
+import { getCategoryTheme } from '../theme/colors';
 import { getSafeTop, getScrollBottomPadding, getResponsiveCardDimensions } from '../utils/safeDimensions';
 
 const { width } = Dimensions.get('window');
@@ -405,11 +406,11 @@ export const DiscoverScreen: React.FC = () => {
         </View>
 
         {/* Network Error / Offline Feedback Banner (Graceful degradation) */}
-        {refreshError ? (
+        {refreshError && allEvents.length === 0 ? (
           <View style={styles.networkStatusBanner}>
             <Ionicons name="cloud-offline-outline" size={12} color={colors.amberLight} />
             <Text style={styles.networkStatusText} numberOfLines={1}>
-              {refreshError} · Showing cached events
+              {refreshError}
             </Text>
           </View>
         ) : null}
@@ -423,14 +424,31 @@ export const DiscoverScreen: React.FC = () => {
           >
             {SEARCH_CATEGORIES.map((cat) => {
               const isSelected = selectedTag === cat;
+              const catTheme = getCategoryTheme(cat);
               return (
                 <TouchableOpacity
                   key={cat}
-                  style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
+                  style={[
+                    styles.categoryChip,
+                    isSelected && {
+                      backgroundColor: catTheme.primary,
+                      borderColor: catTheme.primary,
+                      shadowColor: catTheme.primary,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.45,
+                      shadowRadius: 8,
+                      elevation: 4,
+                    },
+                  ]}
                   onPress={() => handleTagPress(cat)}
                   activeOpacity={0.75}
                 >
-                  <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextActive]}>
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      isSelected && { color: '#07080B', fontWeight: '800' },
+                    ]}
+                  >
                     {cat}
                   </Text>
                 </TouchableOpacity>

@@ -117,7 +117,7 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
   }, [event, userInterests, matchExplanation]);
 
   const catTheme = getCategoryTheme(event.category);
-  const gradientColors = event.gradientColors || catTheme.gradient;
+  const gradientColors = catTheme.gradient;
 
   return (
     <Animated.View
@@ -135,7 +135,13 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         onPress={onPress}
-        style={styles.touchableCard}
+        style={[
+          styles.touchableCard,
+          {
+            borderColor: `${catTheme.primary}4D`,
+            borderWidth: 1.5,
+          },
+        ]}
       >
         {/* Event Photo / Art */}
         <Image
@@ -144,14 +150,14 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
           resizeMode="cover"
         />
 
-        {/* Dynamic Multi-Stop Gradient matching reference */}
+        {/* Dynamic Multi-Stop Gradient matching category theme */}
         <LinearGradient
           colors={[
-            `${gradientColors[0]}BB`, // ~75% opacity top
-            `${gradientColors[1]}88`, // ~55% mid
-            'rgba(7, 8, 11, 0.94)',   // Deep obsidian bottom
+            `${gradientColors[0]}C8`, // ~78% vivid category primary at top
+            `${gradientColors[1]}80`, // ~50% dynamic secondary accent
+            'rgba(7, 8, 11, 0.95)',   // Deep obsidian bottom for high text contrast
           ]}
-          locations={[0, 0.42, 0.94]}
+          locations={[0, 0.40, 0.92]}
           style={styles.gradientOverlay}
         />
 

@@ -13,15 +13,20 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, ConversationPreview } from '../types';
 import { colors, typography, spacing, borderRadius } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { fetchConversations } from '../services/messagingService';
+import { getSafeTop, getSafeBottom } from '../utils/safeDimensions';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Conversations'>;
 
 export const ConversationsScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const safeTop = getSafeTop(insets.top);
+  const safeBottom = getSafeBottom(insets.bottom);
   const navigation = useNavigation<NavigationProp>();
   const isFocused = useIsFocused();
   const { user } = useAuth();
@@ -115,11 +120,11 @@ export const ConversationsScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
       <View style={styles.container}>
         {/* Top Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: safeTop + 6 }]}>
           <TouchableOpacity
             style={styles.headerBackBtn}
             onPress={() => navigation.goBack()}
@@ -161,7 +166,7 @@ export const ConversationsScreen: React.FC = () => {
           data={filteredConversations}
           keyExtractor={(item) => item.id}
           renderItem={renderConversationItem}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: safeBottom + 24 }]}
           refreshing={isLoading}
           onRefresh={loadThreads}
           ListEmptyComponent={
@@ -184,7 +189,7 @@ export const ConversationsScreen: React.FC = () => {
           }
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -202,7 +207,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingTop: Platform.OS === 'android' ? 12 : 8,
     paddingBottom: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',

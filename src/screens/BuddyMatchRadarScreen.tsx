@@ -15,11 +15,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, BuddyProfile } from '../types';
 import { colors, typography, spacing, borderRadius } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useEvents } from '../context/EventsContext';
+import { getSafeTop, getSafeBottom } from '../utils/safeDimensions';
 import {
   fetchEventBuddyAttendees,
   fetchNearbyBuddyAttendees,
@@ -46,6 +48,9 @@ const RADAR_DIAMETER = Math.min(SCREEN_WIDTH * 0.88, 360);
 const RADAR_RADIUS = RADAR_DIAMETER / 2;
 
 export const BuddyMatchRadarScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const safeTop = getSafeTop(insets.top);
+  const safeBottom = getSafeBottom(insets.bottom);
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { user } = useAuth();
@@ -322,11 +327,11 @@ export const BuddyMatchRadarScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingBottom: Math.max(safeBottom, 12) }]}>
         {/* Top Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: safeTop + 4 }]}>
           <TouchableOpacity
             style={styles.headerIconButton}
             onPress={() => navigation.goBack()}
@@ -642,7 +647,7 @@ export const BuddyMatchRadarScreen: React.FC = () => {
           isSending={isSendingNote}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

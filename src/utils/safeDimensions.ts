@@ -7,9 +7,9 @@ import { Platform, StatusBar, Dimensions } from 'react-native';
  * StatusBar.currentHeight provides the exact hardware status bar height.
  */
 export const getSafeTop = (insetsTop: number = 0): number => {
-  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0;
-  // Modern Android status bars/punch-holes are typically 32-52dp.
-  return Math.max(insetsTop, statusBarHeight, Platform.OS === 'ios' ? 44 : 32);
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 36) : 0;
+  // Modern Android status bars/punch-holes are typically 36-54dp.
+  return Math.max(insetsTop, statusBarHeight, Platform.OS === 'ios' ? 44 : 38);
 };
 
 /**
@@ -19,7 +19,7 @@ export const getSafeTop = (insetsTop: number = 0): number => {
  * Ensures a minimum breathing margin so UI never collides with physical edges.
  */
 export const getSafeBottom = (insetsBottom: number = 0): number => {
-  return Math.max(insetsBottom, Platform.OS === 'android' ? 12 : 8);
+  return Math.max(insetsBottom, Platform.OS === 'android' ? 16 : 8);
 };
 
 /**

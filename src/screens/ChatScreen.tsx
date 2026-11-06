@@ -18,11 +18,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, ChatMessage, EventPlanMetadata, HyperlocalEvent } from '../types';
 import { colors, typography, spacing, borderRadius } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useEvents } from '../context/EventsContext';
+import { getSafeTop, getSafeBottom } from '../utils/safeDimensions';
 import {
   fetchMessages,
   sendChatMessage,
@@ -36,6 +38,9 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Chat'>;
 type RouteProps = RouteProp<RootStackParamList, 'Chat'>;
 
 export const ChatScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const safeTop = getSafeTop(insets.top);
+  const safeBottom = getSafeBottom(insets.bottom);
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { user } = useAuth();
@@ -278,14 +283,14 @@ export const ChatScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Top Chat Header */}
-        <View style={styles.header}>
+        {/* Top Chat Header with safe top clearance */}
+        <View style={[styles.header, { paddingTop: safeTop + 4 }]}>
           <TouchableOpacity
             style={styles.headerBackBtn}
             onPress={() => navigation.goBack()}
@@ -387,7 +392,7 @@ export const ChatScreen: React.FC = () => {
             />
 
             {/* Bottom Input Composer */}
-            <View style={styles.composerContainer}>
+            <View style={[styles.composerContainer, { paddingBottom: Math.max(safeBottom, 12) }]}>
               <TouchableOpacity
                 style={styles.planTogetherComposerBtn}
                 onPress={() => setIsPlanModalVisible(true)}
@@ -517,7 +522,7 @@ export const ChatScreen: React.FC = () => {
           </View>
         </Modal>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
