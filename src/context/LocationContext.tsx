@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Coordinates } from '../types';
+import { Coordinates, LocationProvenance } from '../types';
 import { DEFAULT_USER_COORDINATES } from '../data/mockEvents';
 
 export interface DiscoveryArea {
@@ -13,28 +13,52 @@ export interface DiscoveryArea {
 
 export const DISCOVERY_AREAS: DiscoveryArea[] = [
   {
-    id: 'indiranagar',
-    name: 'Indiranagar Arts Hub',
-    coordinates: { latitude: 12.9716, longitude: 77.5946 },
-    tag: 'Culture & Nightlife',
+    id: 'mumbai_bandra',
+    name: 'Bandra & BKC Culture Hub',
+    coordinates: { latitude: 19.0596, longitude: 72.8295 },
+    tag: 'Culture & Tech',
   },
   {
-    id: 'koramangala',
-    name: 'Koramangala Tech Quarter',
-    coordinates: { latitude: 12.9352, longitude: 77.6245 },
-    tag: 'Startups & Hackathons',
+    id: 'mumbai_south',
+    name: 'South Mumbai Heritage',
+    coordinates: { latitude: 18.9220, longitude: 72.8347 },
+    tag: 'Arts & Architecture',
   },
   {
-    id: 'whitefield',
-    name: 'Whitefield Tech Cluster',
-    coordinates: { latitude: 12.9698, longitude: 77.7499 },
-    tag: 'Innovation Labs',
+    id: 'mumbai_suburbs',
+    name: 'Andheri & Juhu Creative Quarter',
+    coordinates: { latitude: 19.1136, longitude: 72.8697 },
+    tag: 'Entertainment & Studios',
   },
   {
-    id: 'north_quarter',
-    name: 'North Innovation Corridor',
-    coordinates: { latitude: 13.0358, longitude: 77.597 },
-    tag: 'Campuses & Design',
+    id: 'thane',
+    name: 'Thane Lake City Hub',
+    coordinates: { latitude: 19.2183, longitude: 72.9781 },
+    tag: 'Lakes & Communities',
+  },
+  {
+    id: 'navi_mumbai',
+    name: 'Navi Mumbai Waterfront',
+    coordinates: { latitude: 19.0330, longitude: 73.0297 },
+    tag: 'Sports & Parks',
+  },
+  {
+    id: 'pune',
+    name: 'Pune Koregaon & IT Hub',
+    coordinates: { latitude: 18.5365, longitude: 73.8942 },
+    tag: 'Live Music & Hackathons',
+  },
+  {
+    id: 'nashik',
+    name: 'Nashik Valley & Hills',
+    coordinates: { latitude: 20.0055, longitude: 73.6885 },
+    tag: 'Vineyards & Treks',
+  },
+  {
+    id: 'nagpur',
+    name: 'Nagpur Central Hub',
+    coordinates: { latitude: 21.1458, longitude: 79.0882 },
+    tag: 'Campus & Lakes',
   },
 ];
 
@@ -46,6 +70,7 @@ interface LocationContextType {
   selectedAreaId: string;
   permissionStatus: 'granted' | 'denied' | 'fallback' | 'checking';
   isUsingFallback: boolean;
+  locationProvenance: LocationProvenance;
   discoveryAreas: DiscoveryArea[];
   setDiscoveryArea: (areaId: string) => Promise<void>;
   setDemoLocation: (locationId: string) => void;
@@ -56,10 +81,11 @@ const LocationContext = createContext<LocationContextType | undefined>(undefined
 
 export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [userCoordinates, setUserCoordinates] = useState<Coordinates>(DEFAULT_USER_COORDINATES);
-  const [locationName, setLocationName] = useState<string>('Indiranagar Arts Hub');
-  const [selectedAreaId, setSelectedAreaId] = useState<string>('indiranagar');
+  const [locationName, setLocationName] = useState<string>('Bandra & BKC Culture Hub');
+  const [selectedAreaId, setSelectedAreaId] = useState<string>('mumbai_bandra');
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'fallback' | 'checking'>('checking');
   const [isUsingFallback, setIsUsingFallback] = useState<boolean>(true);
+  const [locationProvenance, setLocationProvenance] = useState<LocationProvenance>('fallback_demo');
 
   const requestAndFetchLocation = useCallback(async () => {
     setPermissionStatus('checking');
@@ -68,6 +94,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (status !== 'granted') {
         setPermissionStatus('denied');
         setIsUsingFallback(true);
+        setLocationProvenance('fallback_demo');
         const defaultArea = DISCOVERY_AREAS[0];
         setUserCoordinates(defaultArea.coordinates);
         setLocationName(defaultArea.name);
@@ -88,6 +115,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setPermissionStatus('granted');
       setIsUsingFallback(false);
       setSelectedAreaId('gps');
+      setLocationProvenance('gps');
 
       // Try reverse geocoding to get neighborhood / city
       try {
@@ -95,20 +123,41 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (reverse && reverse.length > 0) {
           const place = reverse[0];
           const name =
+            place.city ||
             place.district ||
             place.subregion ||
-            place.city ||
             place.street ||
             'Current Location';
           setLocationName(name);
+        } else {
+          if (
+            coords.latitude >= 18.5 &&
+            coords.latitude <= 19.5 &&
+            coords.longitude >= 72.5 &&
+            coords.longitude <= 73.3
+          ) {
+            setLocationName('Mumbai');
+          } else {
+            setLocationName('Current Location (GPS)');
+          }
         }
       } catch {
-        setLocationName('Current Location (GPS)');
+        if (
+          coords.latitude >= 18.5 &&
+          coords.latitude <= 19.5 &&
+          coords.longitude >= 72.5 &&
+          coords.longitude <= 73.3
+        ) {
+          setLocationName('Mumbai');
+        } else {
+          setLocationName('Current Location (GPS)');
+        }
       }
     } catch {
       // Fallback on simulator / missing GPS
       setPermissionStatus('fallback');
       setIsUsingFallback(true);
+      setLocationProvenance('fallback_demo');
       const defaultArea = DISCOVERY_AREAS[0];
       setUserCoordinates(defaultArea.coordinates);
       setLocationName(defaultArea.name);
@@ -129,6 +178,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setLocationName(area.name);
             setIsUsingFallback(true);
             setPermissionStatus('fallback');
+            setLocationProvenance('discovery_hub');
             return;
           }
         }
@@ -155,6 +205,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setLocationName(area.name);
       setIsUsingFallback(true);
       setPermissionStatus('fallback');
+      setLocationProvenance('discovery_hub');
       await AsyncStorage.setItem(STORAGE_KEY_AREA, area.id);
     }
   };
@@ -171,6 +222,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         selectedAreaId,
         permissionStatus,
         isUsingFallback,
+        locationProvenance,
         discoveryAreas: DISCOVERY_AREAS,
         setDiscoveryArea,
         setDemoLocation,

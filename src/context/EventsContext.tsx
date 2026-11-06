@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
-import { HyperlocalEvent, EventAnnouncement, EventAttendee } from '../types';
-import { MOCK_EVENTS } from '../data/mockEvents';
+import { HyperlocalEvent, EventAnnouncement, EventAttendee, Coordinates } from '../types';
+import { MOCK_EVENTS, DEFAULT_USER_COORDINATES } from '../data/mockEvents';
+import { fetchLiveHyperlocalEvents } from '../services/liveEventService';
 
 interface EventsContextType {
   savedIds: string[];
@@ -30,6 +31,9 @@ interface EventsContextType {
     announcement: Omit<EventAnnouncement, 'id' | 'createdAt'>
   ) => Promise<{ success: boolean; error?: string }>;
   getEventAttendees: (eventId: string) => Promise<EventAttendee[]>;
+  refreshEvents: (coords?: Coordinates) => Promise<{ success: boolean; count?: number; error?: string }>;
+  isRefreshingEvents: boolean;
+  refreshError: string | null;
 }
 
 const STORAGE_KEY_SAVED = '@social_buddy_saved_ids';
@@ -44,11 +48,24 @@ export const EventsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [rsvpIds, setRsvpIds] = useState<string[]>([]);
   const [attendedIds, setAttendedIds] = useState<string[]>([]);
   const [customEvents, setCustomEvents] = useState<HyperlocalEvent[]>([]);
+  const [remoteEvents, setRemoteEvents] = useState<HyperlocalEvent[]>(MOCK_EVENTS);
+  const [isRefreshingEvents, setIsRefreshingEvents] = useState<boolean>(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const isRefreshingRef = useRef<boolean>(false);
 
-  // Load persisted states on mount
-  useEffect(() => {
-    const loadPersistedData = async () => {
+  // Refresh both persisted local state and live remote Supabase/hyperlocal events
+  const refreshEvents = useCallback(
+    async (coords?: Coordinates): Promise<{ success: boolean; count?: number; error?: string }> => {
+      // 1. Prevent duplicate concurrent refresh requests
+      if (isRefreshingRef.current) {
+        return { success: false, error: 'Refresh already in progress' };
+      }
+      isRefreshingRef.current = true;
+      setIsRefreshingEvents(true);
+      setRefreshError(null);
+
       try {
+        // 2. Re-sync persisted states and custom hosted events from storage
         const [savedData, rsvpData, attendedData, hostedData] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY_SAVED),
           AsyncStorage.getItem(STORAGE_KEY_RSVP),
@@ -79,17 +96,54 @@ export const EventsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (hostedData) {
           setCustomEvents(JSON.parse(hostedData));
         }
-      } catch (e) {
-        console.warn('Failed to load local saved events', e);
-      }
-    };
 
-    loadPersistedData();
-  }, []);
+        // 3. Genuine remote refresh: invoke existing fetchLiveHyperlocalEvents using PostGIS RPC or table query
+        const center = coords || DEFAULT_USER_COORDINATES;
+        const fetchResult = await fetchLiveHyperlocalEvents(
+          center.latitude,
+          center.longitude,
+          50, // 50km radius for discovery scope
+          'All'
+        );
+
+        if (fetchResult.events && fetchResult.events.length > 0) {
+          setRemoteEvents(fetchResult.events);
+          if (fetchResult.error && fetchResult.isDemoFallback) {
+            setRefreshError(fetchResult.error);
+          }
+          return { success: true, count: fetchResult.events.length };
+        } else if (fetchResult.error) {
+          // Network failure: retain existing events and report error gracefully
+          setRefreshError(fetchResult.error);
+          return { success: false, error: fetchResult.error };
+        }
+
+        return { success: true, count: remoteEvents.length };
+      } catch (e: any) {
+        const errorMsg = e?.message || 'Network request failed';
+        console.warn('Failed to refresh events from remote source:', e);
+        // Retain existing events on network failures!
+        setRefreshError(errorMsg);
+        return { success: false, error: errorMsg };
+      } finally {
+        isRefreshingRef.current = false;
+        setIsRefreshingEvents(false);
+      }
+    },
+    [remoteEvents.length]
+  );
+
+  // Load persisted states on mount
+  useEffect(() => {
+    refreshEvents();
+  }, [refreshEvents]);
 
   const combinedEvents = useMemo(() => {
-    return [...customEvents, ...MOCK_EVENTS];
-  }, [customEvents]);
+    // Custom hosted events override or prepend remote events by ID
+    const customIds = new Set(customEvents.map((e) => e.id));
+    const nonOverriddenRemote = remoteEvents.filter((e) => !customIds.has(e.id));
+    return [...customEvents, ...nonOverriddenRemote];
+  }, [customEvents, remoteEvents]);
 
   // Public discovery feed strictly excludes private drafts
   const publicEvents = useMemo(() => {
@@ -575,6 +629,9 @@ export const EventsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         cancelEventByOrganizer,
         postAnnouncement,
         getEventAttendees,
+        refreshEvents,
+        isRefreshingEvents,
+        refreshError,
       }}
     >
       {children}

@@ -286,7 +286,7 @@ export const ProfileScreen: React.FC = () => {
                     selectedAreaId === area.id && styles.areaChipTextActive,
                   ]}
                 >
-                  {area.name.replace('Indiranagar ', '').replace('Koramangala ', '').replace('Innovation ', '')}
+                  {area.name}
                 </Text>
               </TouchableOpacity>
             ))}

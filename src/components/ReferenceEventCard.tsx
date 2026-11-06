@@ -67,7 +67,12 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
       return { reason: matchExplanation, icon: 'compass' as const };
     }
 
-    const distStr = event.distanceKm !== undefined ? `${event.distanceKm} km away` : 'Nearby';
+    const isOnline = event.attendanceMode === 'online' || event.isOnline;
+    const distStr = isOnline
+      ? 'Virtual'
+      : event.distanceKm !== undefined
+      ? `${event.distanceKm} km away`
+      : 'Nearby';
 
     // 1. Direct interest match
     const matchedInterest = userInterests.find((interest) => {
@@ -76,7 +81,8 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
         event.category.toLowerCase().includes(lower) ||
         event.title.toLowerCase().includes(lower) ||
         event.tagline.toLowerCase().includes(lower) ||
-        event.description.toLowerCase().includes(lower)
+        event.description.toLowerCase().includes(lower) ||
+        (event.tags && event.tags.some((t) => t.toLowerCase().includes(lower)))
       );
     });
 
@@ -204,6 +210,18 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
               <Ionicons name={matchInfo.icon} size={11} color={colors.orangePrimary} />
               <Text style={styles.matchBadgeText}>{matchInfo.reason}</Text>
             </View>
+            {event.attendanceMode === 'online' && (
+              <View style={styles.onlineBadge}>
+                <Ionicons name="videocam" size={10} color="#60A5FA" />
+                <Text style={styles.onlineBadgeText}>ONLINE</Text>
+              </View>
+            )}
+            {event.attendanceMode === 'in_person' && (
+              <View style={styles.inPersonBadge}>
+                <Ionicons name="location" size={10} color="#34D399" />
+                <Text style={styles.inPersonBadgeText}>IN-PERSON</Text>
+              </View>
+            )}
             {event.isFree && (
               <View style={styles.freeBadge}>
                 <Text style={styles.freeBadgeText}>FREE</Text>
@@ -394,6 +412,40 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     color: colors.success,
+    letterSpacing: 0.5,
+  },
+  onlineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: borderRadius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.45)',
+  },
+  onlineBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#60A5FA',
+    letterSpacing: 0.5,
+  },
+  inPersonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: borderRadius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.45)',
+  },
+  inPersonBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#34D399',
     letterSpacing: 0.5,
   },
 });

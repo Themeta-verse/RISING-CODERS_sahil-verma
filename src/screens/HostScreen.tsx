@@ -83,8 +83,8 @@ export const HostScreen: React.FC = () => {
   const [time, setTime] = useState('6:00 PM');
   const [endTime, setEndTime] = useState('9:00 PM');
   const [timezone, setTimezone] = useState('Local Time');
-  const [venue, setVenue] = useState('Indiranagar Innovation Hub');
-  const [address, setAddress] = useState('100 Feet Rd, Indiranagar, Bengaluru');
+  const [venue, setVenue] = useState('Bandra Collective Studio');
+  const [address, setAddress] = useState('Pali Hill, Bandra West, Mumbai');
   const [price, setPrice] = useState('Free');
   const [capacity, setCapacity] = useState('50');
   const [registrationDeadline, setRegistrationDeadline] = useState('2026-12-24 5:00 PM');
@@ -157,8 +157,8 @@ export const HostScreen: React.FC = () => {
     setTime('6:00 PM');
     setEndTime('9:00 PM');
     setTimezone('Local Time');
-    setVenue('Indiranagar Innovation Hub');
-    setAddress('100 Feet Rd, Indiranagar, Bengaluru');
+    setVenue('Bandra Collective Studio');
+    setAddress('Pali Hill, Bandra West, Mumbai');
     setPrice('Free');
     setCapacity('50');
     setRegistrationDeadline('2026-12-24 5:00 PM');
@@ -239,7 +239,7 @@ export const HostScreen: React.FC = () => {
       endTime: endTime.trim() || '9:00 PM',
       timezone: timezone.trim() || 'Local Time',
       venue: venue.trim(),
-      address: address.trim() || `${venue.trim()}, Bengaluru`,
+      address: address.trim() || `${venue.trim()}, Mumbai`,
       coordinates: {
         latitude: userCoordinates.latitude + (Math.random() - 0.5) * 0.015,
         longitude: userCoordinates.longitude + (Math.random() - 0.5) * 0.015,
@@ -747,7 +747,7 @@ export const HostScreen: React.FC = () => {
                 <Ionicons name="business-outline" size={18} color={colors.textSecondary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. Indiranagar Innovation Center"
+                  placeholder="e.g. Bandra Collective Studio"
                   placeholderTextColor={colors.textMuted}
                   value={venue}
                   onChangeText={setVenue}
@@ -759,7 +759,7 @@ export const HostScreen: React.FC = () => {
                 <Ionicons name="location-outline" size={18} color={colors.textSecondary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. 100 Feet Rd, HAL 2nd Stage, Bengaluru"
+                  placeholder="e.g. Pali Hill, Bandra West, Mumbai"
                   placeholderTextColor={colors.textMuted}
                   value={address}
                   onChangeText={setAddress}

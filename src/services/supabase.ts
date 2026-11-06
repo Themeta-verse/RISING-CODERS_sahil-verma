@@ -4,7 +4,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Read from Expo environment variables with defensive empty-string fallback
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseAnonKey =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  '';
 
 /**
  * Checks if Supabase has live valid project credentials configured.
