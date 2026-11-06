@@ -13,7 +13,6 @@ interface CityPulse3DCanvasProps {
   userCoordinates?: Coordinates;
   isUserDistant?: boolean;
   recenterTrigger?: number;
-  zoomLevel?: number;
 }
 
 /**

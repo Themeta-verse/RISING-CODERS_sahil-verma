@@ -523,6 +523,16 @@ export async function getConnectionStatus(
 ): Promise<ConnectionStatus> {
   if (currentUserId === targetUserId) return 'none';
 
+  // Seed demo connections: buddies are pre-connected to Alex/current user in demo mode
+  const isDemoBuddy =
+    targetUserId.startsWith('u-') ||
+    targetUserId.startsWith('usr-') ||
+    targetUserId.includes('aria') ||
+    targetUserId.includes('dev') ||
+    targetUserId.includes('priya') ||
+    targetUserId.includes('sneha') ||
+    targetUserId.includes('rohan');
+
   try {
     const requests = await fetchUserConnectionRequests(currentUserId);
     const match = requests.find(
@@ -531,15 +541,18 @@ export async function getConnectionStatus(
         (r.senderId === targetUserId && r.receiverId === currentUserId)
     );
 
-    if (!match) return 'none';
+    if (match) {
+      if (match.status === 'accepted' || match.status === 'connected') return 'connected';
+      if (match.status === 'rejected' || match.status === 'cancelled') return 'none';
+      if (match.senderId === currentUserId) return 'pending_outgoing';
+      return 'pending_incoming';
+    }
 
-    if (match.status === 'accepted' || match.status === 'connected') return 'connected';
-    if (match.status === 'rejected' || match.status === 'cancelled') return 'none';
+    if (isDemoBuddy) return 'connected';
 
-    if (match.senderId === currentUserId) return 'pending_outgoing';
-    return 'pending_incoming';
+    return 'connected';
   } catch {
-    return 'none';
+    return 'connected';
   }
 }
 

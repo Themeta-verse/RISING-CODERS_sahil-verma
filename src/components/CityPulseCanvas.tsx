@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -36,7 +36,6 @@ interface CityPulseCanvasProps {
   isUserDistant?: boolean;
   onRecenter?: () => void;
   recenterTrigger?: number;
-  zoomLevel?: number;
 }
 
 // Procedural stylized isometric buildings around the hub core
@@ -78,8 +77,12 @@ export const CityPulseCanvas: React.FC<CityPulseCanvasProps> = ({
   isUserDistant = false,
   onRecenter,
   recenterTrigger,
-  zoomLevel = 1.0,
 }) => {
+  // Dynamic pinch-to-zoom scale state
+  const [zoomScale, setZoomScale] = useState<number>(1.0);
+  const initialPinchDistRef = useRef<number | null>(null);
+  const initialPinchZoomRef = useRef<number>(1.0);
+
   // Panning offset state with animated values for smooth gestures
   const panX = useRef(new Animated.Value(0)).current;
   const panY = useRef(new Animated.Value(0)).current;
@@ -125,33 +128,64 @@ export const CityPulseCanvas: React.FC<CityPulseCanvasProps> = ({
     };
   }, [hubPulseScale, hubPulseOpacity]);
 
-  // Pan Responder for smooth drag/explore interactions
+  // Pan Responder supporting both 1-finger panning and 2-finger pinch-to-zoom
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_, gesture) => {
-          return Math.abs(gesture.dx) > 6 || Math.abs(gesture.dy) > 6;
+        onMoveShouldSetPanResponder: (evt, gesture) => {
+          const touches = evt.nativeEvent.touches;
+          if (touches && touches.length >= 2) return true;
+          return Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5;
         },
-        onMoveShouldSetPanResponderCapture: (_, gesture) => {
-          return Math.abs(gesture.dx) > 12 || Math.abs(gesture.dy) > 12;
+        onMoveShouldSetPanResponderCapture: (evt, gesture) => {
+          const touches = evt.nativeEvent.touches;
+          if (touches && touches.length >= 2) return true;
+          return Math.abs(gesture.dx) > 10 || Math.abs(gesture.dy) > 10;
         },
-        onPanResponderGrant: () => {
+        onPanResponderGrant: (evt) => {
+          const touches = evt.nativeEvent.touches;
+          if (touches && touches.length >= 2) {
+            const dx = touches[0].pageX - touches[1].pageX;
+            const dy = touches[0].pageY - touches[1].pageY;
+            initialPinchDistRef.current = Math.hypot(dx, dy);
+            initialPinchZoomRef.current = zoomScale;
+          } else {
+            initialPinchDistRef.current = null;
+          }
           panX.setOffset(panOffsetRef.current.x);
           panY.setOffset(panOffsetRef.current.y);
           panX.setValue(0);
           panY.setValue(0);
         },
-        onPanResponderMove: Animated.event([null, { dx: panX, dy: panY }], {
-          useNativeDriver: false,
-        }),
+        onPanResponderMove: (evt, gesture) => {
+          const touches = evt.nativeEvent.touches;
+          if (touches && touches.length >= 2) {
+            const dx = touches[0].pageX - touches[1].pageX;
+            const dy = touches[0].pageY - touches[1].pageY;
+            const currentDist = Math.hypot(dx, dy);
+
+            if (!initialPinchDistRef.current || initialPinchDistRef.current <= 0) {
+              initialPinchDistRef.current = currentDist;
+              initialPinchZoomRef.current = zoomScale;
+            } else {
+              const factor = currentDist / initialPinchDistRef.current;
+              const newScale = Math.max(0.4, Math.min(3.5, initialPinchZoomRef.current * factor));
+              setZoomScale(newScale);
+            }
+          } else if (touches && touches.length === 1 && !initialPinchDistRef.current) {
+            panX.setValue(gesture.dx);
+            panY.setValue(gesture.dy);
+          }
+        },
         onPanResponderRelease: (_, gesture) => {
+          initialPinchDistRef.current = null;
           panX.flattenOffset();
           panY.flattenOffset();
           const currentX = panOffsetRef.current.x + gesture.dx;
           const currentY = panOffsetRef.current.y + gesture.dy;
-          const clampedX = Math.max(-250, Math.min(250, currentX));
-          const clampedY = Math.max(-250, Math.min(250, currentY));
+          const clampedX = Math.max(-350, Math.min(350, currentX));
+          const clampedY = Math.max(-350, Math.min(350, currentY));
           panOffsetRef.current = { x: clampedX, y: clampedY };
           if (currentX !== clampedX || currentY !== clampedY) {
             Animated.parallel([
@@ -170,12 +204,16 @@ export const CityPulseCanvas: React.FC<CityPulseCanvasProps> = ({
             ]).start();
           }
         },
+        onPanResponderTerminate: () => {
+          initialPinchDistRef.current = null;
+        },
       }),
-    [panX, panY]
+    [panX, panY, zoomScale]
   );
 
   // Recenter handler exposed to parent
   const handleRecenter = () => {
+    setZoomScale(1.0);
     Animated.parallel([
       Animated.spring(panX, {
         toValue: 0,
@@ -210,11 +248,11 @@ export const CityPulseCanvas: React.FC<CityPulseCanvasProps> = ({
     handleRecenter();
   }, [centerCoordinates.latitude, centerCoordinates.longitude]);
 
-  // Dynamically compute optimal viewport scale with interactive zoom factor
+  // Dynamically compute optimal viewport scale with interactive pinch zoom factor
   const optimalScale = useMemo(() => {
     const base = getOptimalScale(events, centerCoordinates, viewportWidth, viewportHeight, 80);
-    return base * (zoomLevel ?? 1.0);
-  }, [events, centerCoordinates, viewportWidth, viewportHeight, zoomLevel]);
+    return base * zoomScale;
+  }, [events, centerCoordinates, viewportWidth, viewportHeight, zoomScale]);
 
   // Viewport configuration
   const viewportConfig: CityPulseViewportConfig = useMemo(() => {

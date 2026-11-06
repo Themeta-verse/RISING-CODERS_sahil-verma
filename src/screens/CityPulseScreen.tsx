@@ -82,31 +82,8 @@ export const CityPulseScreen: React.FC<CityPulseScreenProps> = ({
     effectiveInitialEventId ?? null
   );
   const [recenterTrigger, setRecenterTrigger] = useState<number>(0);
-  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
   const [isAreaModalVisible, setIsAreaModalVisible] = useState<boolean>(false);
   const [isRadiusModalVisible, setIsRadiusModalVisible] = useState<boolean>(false);
-
-  const handleZoomIn = useCallback(() => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {}
-    setZoomLevel((prev) => Math.min(2.5, Math.round((prev + 0.25) * 100) / 100));
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {}
-    setZoomLevel((prev) => Math.max(0.5, Math.round((prev - 0.25) * 100) / 100));
-  }, []);
-
-  const handleResetZoom = useCallback(() => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {}
-    setZoomLevel(1.0);
-    setRecenterTrigger((prev) => prev + 1);
-  }, []);
 
   const handleBack = useCallback(() => {
     try {
@@ -392,44 +369,7 @@ export const CityPulseScreen: React.FC<CityPulseScreenProps> = ({
             userCoordinates={userCoordinates}
             isUserDistant={mismatchInfo.isMismatch}
             recenterTrigger={recenterTrigger}
-            zoomLevel={zoomLevel}
           />
-
-          {/* Floating Zoom & Perspective Controls on 3D Map */}
-          <View style={[styles.floatingZoomCluster, { top: getSafeTop(insets.top) + 130 }]} pointerEvents="box-none">
-            <TouchableOpacity
-              style={styles.floatingZoomBtn}
-              onPress={handleZoomIn}
-              activeOpacity={0.8}
-              accessibilityLabel="Zoom In"
-            >
-              <Ionicons name="add" size={18} color={colors.textPrimary} />
-            </TouchableOpacity>
-
-            <View style={styles.floatingZoomBadge}>
-              <Text style={styles.floatingZoomBadgeText}>
-                {Math.round(zoomLevel * 100)}%
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.floatingZoomBtn}
-              onPress={handleZoomOut}
-              activeOpacity={0.8}
-              accessibilityLabel="Zoom Out"
-            >
-              <Ionicons name="remove" size={18} color={colors.textPrimary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.floatingZoomBtn, styles.floatingRecenterBtn]}
-              onPress={handleResetZoom}
-              activeOpacity={0.8}
-              accessibilityLabel="Reset View"
-            >
-              <Ionicons name="locate" size={15} color={colors.orangePrimary} />
-            </TouchableOpacity>
-          </View>
         </View>
       )}
 
@@ -1075,48 +1015,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 107, 0, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  floatingZoomCluster: {
-    position: 'absolute',
-    right: 14,
-    backgroundColor: 'rgba(12, 16, 26, 0.88)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    padding: 4,
-    alignItems: 'center',
-    gap: 4,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 10,
-    zIndex: 99,
-  },
-  floatingZoomBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  floatingZoomBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-  },
-  floatingZoomBadgeText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: colors.textSecondary,
-    letterSpacing: 0.3,
-  },
-  floatingRecenterBtn: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    marginTop: 2,
   },
   areaPill: {
     flex: 1,

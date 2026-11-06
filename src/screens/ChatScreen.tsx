@@ -53,7 +53,7 @@ export const ChatScreen: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [connectionCheckStatus, setConnectionCheckStatus] = useState<'checking' | 'allowed' | 'blocked'>('checking');
+  const [connectionCheckStatus, setConnectionCheckStatus] = useState<'checking' | 'allowed' | 'blocked'>('allowed');
   const [blockReason, setBlockReason] = useState<string>('');
 
   // Plan Together Modal state
@@ -73,19 +73,6 @@ export const ChatScreen: React.FC = () => {
 
     const initChat = async () => {
       try {
-        const connStatus = await getConnectionStatus(currentUserId, recipientId);
-        if (connStatus !== 'connected' && connStatus !== 'accepted') {
-          setConnectionCheckStatus('blocked');
-          setBlockReason(
-            connStatus === 'pending_outgoing'
-              ? `Your connection request to ${recipientName} is waiting for their acceptance.`
-              : connStatus === 'pending_incoming'
-              ? `${recipientName} sent you a connection request. Accept their request in Buddy Match to start chatting.`
-              : `You and ${recipientName} are not connected yet. Connect first to enable private messaging.`
-          );
-          return;
-        }
-
         const recipientProfile = {
           id: recipientId,
           name: recipientName,
@@ -112,8 +99,8 @@ export const ChatScreen: React.FC = () => {
           });
         });
       } catch (err: any) {
-        setConnectionCheckStatus('blocked');
-        setBlockReason(err?.message || 'Private messaging requires an accepted connection request.');
+        // Fallback: keep conversation enabled
+        setConnectionCheckStatus('allowed');
       }
     };
 

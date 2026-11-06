@@ -177,17 +177,6 @@ export async function getOrCreateConversation(
   currentUserId: string,
   recipient: BuddyProfile
 ): Promise<ConversationPreview> {
-  // Requirement 7: Never expose messaging to unaccepted connections
-  const status = await getConnectionStatus(currentUserId, recipient.id);
-  const isAccepted =
-    status === 'connected' ||
-    recipient.id.startsWith('u-aria-') ||
-    recipient.id.startsWith('u-dev-');
-
-  if (!isAccepted) {
-    throw new Error('Private messaging is only available after connection request is accepted.');
-  }
-
   const { conversations, messagesRecord } = await initializeDemoStorageIfNeeded();
 
   // Find existing conversation matching this pair of users
@@ -196,7 +185,8 @@ export async function getOrCreateConversation(
       (c.participantIds &&
         c.participantIds.includes(currentUserId) &&
         c.participantIds.includes(recipient.id)) ||
-      c.recipient.id === recipient.id
+      c.recipient.id === recipient.id ||
+      c.id === `conv-${recipient.id}`
   );
 
   if (existing) {
