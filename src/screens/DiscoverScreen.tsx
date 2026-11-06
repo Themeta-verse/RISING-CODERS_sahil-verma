@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  useWindowDimensions,
   Modal,
   NativeSyntheticEvent,
   NativeScrollEvent,
@@ -25,9 +26,9 @@ import { useAuth } from '../context/AuthContext';
 import { calculateDistanceKm } from '../utils/distance';
 import { RootStackParamList, HyperlocalEvent } from '../types';
 import { colors, spacing, borderRadius } from '../theme';
+import { getSafeTop, getScrollBottomPadding, getResponsiveCardDimensions } from '../utils/safeDimensions';
 
 const { width } = Dimensions.get('window');
-const CARD_INTERVAL = 400; // card height + margin
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -47,6 +48,10 @@ const DATE_OPTIONS = ['All Dates', 'Today', 'This Weekend', 'Upcoming'] as const
 export const DiscoverScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { cardInterval } = getResponsiveCardDimensions(windowWidth, windowHeight);
+  const safeTop = getSafeTop(insets.top);
+  const scrollBottom = getScrollBottomPadding(insets.bottom);
   const { allEvents, isSaved, toggleSave } = useEvents();
   const { userCoordinates, locationName, discoveryAreas, selectedAreaId, setDiscoveryArea } = useLocation();
   const { user } = useAuth();
@@ -168,7 +173,7 @@ export const DiscoverScreen: React.FC = () => {
     const offsetY = event.nativeEvent.contentOffset.y;
     const index = Math.max(
       0,
-      Math.min(filteredEvents.length - 1, Math.floor((offsetY + 120) / CARD_INTERVAL))
+      Math.min(filteredEvents.length - 1, Math.floor((offsetY + 120) / cardInterval))
     );
     if (index !== activeCardIndex) {
       setActiveCardIndex(index);
@@ -212,7 +217,7 @@ export const DiscoverScreen: React.FC = () => {
       <View
         style={[
           styles.safeHeaderWrapper,
-          { paddingTop: Math.max(insets.top, 38) + 8 },
+          { paddingTop: safeTop + 8 },
         ]}
       >
         <View style={styles.header}>
@@ -394,7 +399,7 @@ export const DiscoverScreen: React.FC = () => {
       {/* Events Feed ScrollView */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottom }]}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}

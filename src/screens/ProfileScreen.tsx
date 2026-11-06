@@ -21,6 +21,7 @@ import { useLocation } from '../context/LocationContext';
 import { useAuth } from '../context/AuthContext';
 import { colors, spacing, borderRadius, typography } from '../theme';
 import * as ImagePicker from 'expo-image-picker';
+import { getSafeTop, getScrollBottomPadding } from '../utils/safeDimensions';
 
 const { width } = Dimensions.get('window');
 
@@ -37,6 +38,8 @@ const AVAILABLE_INTERESTS = [
 
 export const ProfileScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTop(insets.top);
+  const scrollBottom = getScrollBottomPadding(insets.bottom, false);
   const navigation = useNavigation();
   const { savedIds, rsvpIds } = useEvents();
   const { locationName, isUsingFallback, refreshLocation, discoveryAreas, selectedAreaId, setDiscoveryArea } = useLocation();
@@ -96,7 +99,7 @@ export const ProfileScreen: React.FC = () => {
       <View
         style={[
           styles.safeHeaderWrapper,
-          { paddingTop: Math.max(insets.top, 38) + 8 },
+          { paddingTop: safeTop + 8 },
         ]}
       >
         <View style={styles.header}>
@@ -124,7 +127,7 @@ export const ProfileScreen: React.FC = () => {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, { paddingBottom: scrollBottom }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.avatarContainer}>

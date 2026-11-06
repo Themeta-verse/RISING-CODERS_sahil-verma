@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
@@ -14,19 +15,30 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { EventDetailScreen } from '../screens/EventDetailScreen';
 import { RootTabParamList, RootStackParamList } from '../types';
 import { colors, typography } from '../theme';
+import { getSafeBottom, getTabBarHeight } from '../utils/safeDimensions';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // Bottom Navigation Tabs: (Events, Calendar, Nearby, Host, Saved)
 const MainTabs: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const safeBottom = getSafeBottom(insets.bottom);
+  const tabBarHeight = getTabBarHeight(insets.bottom);
+
   return (
     <Tab.Navigator
       initialRouteName="Discover"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: tabBarHeight,
+            paddingBottom: safeBottom,
+          },
+        ],
         tabBarActiveTintColor: colors.orangePrimary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: styles.tabBarLabel,
@@ -133,16 +145,15 @@ export const RootNavigator: React.FC = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: 'rgba(18, 20, 28, 0.96)',
+    backgroundColor: 'rgba(18, 20, 28, 0.98)',
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
-    height: 68,
-    paddingBottom: 10,
-    paddingTop: 8,
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    paddingTop: 8,
+    elevation: 10,
   },
   tabBarLabel: {
     ...typography.caption,

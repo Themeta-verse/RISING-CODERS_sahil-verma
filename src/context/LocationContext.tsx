@@ -61,31 +61,6 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'fallback' | 'checking'>('checking');
   const [isUsingFallback, setIsUsingFallback] = useState<boolean>(true);
 
-  // Restore preferred area on boot
-  useEffect(() => {
-    const restoreArea = async () => {
-      try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY_AREA);
-        if (stored && stored !== 'gps') {
-          const area = DISCOVERY_AREAS.find((a) => a.id === stored);
-          if (area) {
-            setSelectedAreaId(area.id);
-            setUserCoordinates(area.coordinates);
-            setLocationName(area.name);
-            setIsUsingFallback(true);
-            setPermissionStatus('fallback');
-            return;
-          }
-        }
-        // Default: attempt GPS location fetch
-        requestAndFetchLocation();
-      } catch {
-        requestAndFetchLocation();
-      }
-    };
-    restoreArea();
-  }, []);
-
   const requestAndFetchLocation = useCallback(async () => {
     setPermissionStatus('checking');
     try {
@@ -140,6 +115,31 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setSelectedAreaId(defaultArea.id);
     }
   }, []);
+
+  // Restore preferred area on boot
+  useEffect(() => {
+    const restoreArea = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY_AREA);
+        if (stored && stored !== 'gps') {
+          const area = DISCOVERY_AREAS.find((a) => a.id === stored);
+          if (area) {
+            setSelectedAreaId(area.id);
+            setUserCoordinates(area.coordinates);
+            setLocationName(area.name);
+            setIsUsingFallback(true);
+            setPermissionStatus('fallback');
+            return;
+          }
+        }
+        // Default: attempt GPS location fetch
+        requestAndFetchLocation();
+      } catch {
+        requestAndFetchLocation();
+      }
+    };
+    restoreArea();
+  }, [requestAndFetchLocation]);
 
   const setDiscoveryArea = async (areaId: string) => {
     if (areaId === 'gps') {

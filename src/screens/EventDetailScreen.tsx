@@ -25,6 +25,7 @@ import { useLocation } from '../context/LocationContext';
 import { useAuth } from '../context/AuthContext';
 import { calculateDistanceKm, formatDistance } from '../utils/distance';
 import { colors, spacing, borderRadius, typography } from '../theme';
+import { getSafeTop, getSafeBottom } from '../utils/safeDimensions';
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +34,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export const EventDetailScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTop(insets.top);
+  const safeBottom = getSafeBottom(insets.bottom);
   const route = useRoute<EventDetailRouteProp>();
   const navigation = useNavigation<NavigationProp>();
   const { eventId } = route.params;
@@ -106,9 +109,7 @@ export const EventDetailScreen: React.FC = () => {
   const spotsLeft = Math.max(0, capacity - registeredCount);
   const isFull = spotsLeft === 0;
   const isCancelled = event.status === 'cancelled';
-  const isDeadlinePassed = event.registrationDeadline
-    ? new Date(event.registrationDeadline).getTime() < Date.now()
-    : false;
+  const isDeadlinePassed = event.isUpcoming === false;
 
   const formatDeadline = (isoString?: string) => {
     if (!isoString) return null;
@@ -243,7 +244,7 @@ export const EventDetailScreen: React.FC = () => {
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[styles.contentContainer, { paddingBottom: 90 + safeBottom }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Full-Bleed Poster Image */}
@@ -259,7 +260,7 @@ export const EventDetailScreen: React.FC = () => {
           <View
             style={[
               styles.topNavSafe,
-              { paddingTop: Math.max(insets.top, 38) + 8 },
+              { paddingTop: safeTop + 8 },
             ]}
           >
             <View style={styles.topNav}>
@@ -681,7 +682,7 @@ export const EventDetailScreen: React.FC = () => {
       </ScrollView>
 
       {/* Fixed Sticky Registration Bottom Bar */}
-      <SafeAreaView style={styles.stickyBottomSafe}>
+      <SafeAreaView edges={['bottom']} style={[styles.stickyBottomSafe, { paddingBottom: safeBottom }]}>
         <View style={styles.stickyBottom}>
           <View style={styles.priceColumn}>
             <Text style={styles.priceLabel}>Admission</Text>

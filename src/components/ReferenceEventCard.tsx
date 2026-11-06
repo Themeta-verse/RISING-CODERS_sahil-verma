@@ -1,11 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Image,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
   Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,9 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { HyperlocalEvent } from '../types';
 import { colors, spacing, borderRadius } from '../theme';
-
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = width - spacing.lg * 2;
+import { getResponsiveCardDimensions } from '../utils/safeDimensions';
 
 interface ReferenceEventCardProps {
   event: HyperlocalEvent;
@@ -34,7 +32,9 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
   onPress,
   onBookmarkPress,
 }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { cardWidth, cardHeight } = getResponsiveCardDimensions(windowWidth, windowHeight);
+  const [scaleAnim] = useState(() => new Animated.Value(1));
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -116,6 +116,8 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
       style={[
         styles.cardWrapper,
         {
+          width: cardWidth,
+          height: cardHeight,
           transform: [{ scale: scaleAnim }],
         },
       ]}
@@ -219,9 +221,9 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
             {event.title}
           </Text>
 
-          {/* Social Proof Subtitle: "Voted 1,456 Participants'" */}
+          {/* Social Proof Subtitle: "Voted 1,456 Participants" */}
           <Text style={styles.votedText}>
-            Voted {event.votedCount?.toLocaleString() || event.attendeeCount.toLocaleString()} Participants'
+            {`Voted ${(event.votedCount || event.attendeeCount).toLocaleString()} Participants`}
           </Text>
         </View>
       </TouchableOpacity>
@@ -231,22 +233,20 @@ export const ReferenceEventCard: React.FC<ReferenceEventCardProps> = ({
 
 const styles = StyleSheet.create({
   cardWrapper: {
-    width: CARD_WIDTH,
-    height: 380,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     alignSelf: 'center',
   },
   touchableCard: {
     flex: 1,
-    borderRadius: borderRadius.card, // 28
+    borderRadius: borderRadius.xl,
     overflow: 'hidden',
     backgroundColor: colors.surfaceCard,
     position: 'relative',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 6,
   },
   backgroundImage: {
     ...StyleSheet.absoluteFill,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    padding: spacing.lg,
+    padding: spacing.md,
     zIndex: 2,
   },
   avatarStack: {
@@ -268,17 +268,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stackedAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2.5,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
     borderColor: '#FFFFFF',
     backgroundColor: colors.surfaceElevated,
   },
   soloBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
@@ -291,10 +291,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   bookmarkButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(7, 8, 11, 0.6)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(7, 8, 11, 0.65)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
@@ -305,9 +305,9 @@ const styles = StyleSheet.create({
     borderColor: colors.orangePrimary,
   },
   dateBadge: {
-    width: 52,
-    height: 54,
-    borderRadius: borderRadius.md + 2,
+    width: 46,
+    height: 48,
+    borderRadius: borderRadius.md,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -318,14 +318,14 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   dateDayText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: '#07080B',
-    lineHeight: 20,
+    lineHeight: 18,
     letterSpacing: -0.5,
   },
   dateMonthText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
     color: '#07080B',
     textTransform: 'uppercase',
@@ -337,25 +337,25 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: spacing.lg + 2,
+    padding: spacing.md + 2,
     zIndex: 2,
   },
   categoryLabel: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '500',
     color: 'rgba(255, 255, 255, 0.75)',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   titleText: {
-    fontSize: 27,
+    fontSize: 22,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -0.6,
-    lineHeight: 33,
-    marginBottom: 6,
+    letterSpacing: -0.5,
+    lineHeight: 26,
+    marginBottom: 4,
   },
   votedText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '500',
     color: 'rgba(255, 255, 255, 0.85)',
   },

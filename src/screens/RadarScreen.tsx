@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { useLocation } from '../context/LocationContext';
 import { calculateDistanceKm, formatDistance } from '../utils/distance';
 import { RootStackParamList } from '../types';
 import { colors, spacing, borderRadius, typography } from '../theme';
+import { getSafeTop, getScrollBottomPadding } from '../utils/safeDimensions';
 
 const { width } = Dimensions.get('window');
 
@@ -28,15 +29,17 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export const RadarScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTop(insets.top);
+  const scrollBottom = getScrollBottomPadding(insets.bottom);
   const navigation = useNavigation<NavigationProp>();
   const { allEvents, isSaved, toggleSave } = useEvents();
   const { user } = useAuth();
-  const { userCoordinates, locationName } = useLocation();
+  const { userCoordinates } = useLocation();
   const [radarRangeKm, setRadarRangeKm] = useState<number>(10);
 
-  // Radar Pulse Animation
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const pulseOpacity = useRef(new Animated.Value(0.7)).current;
+  // Radar Pulse Animation (React 19 safe initialization)
+  const [pulseAnim] = useState(() => new Animated.Value(1));
+  const [pulseOpacity] = useState(() => new Animated.Value(0.7));
 
   useEffect(() => {
     Animated.loop(
@@ -110,7 +113,7 @@ export const RadarScreen: React.FC = () => {
       <View
         style={[
           styles.safeHeaderWrapper,
-          { paddingTop: Math.max(insets.top, 38) + 8 },
+          { paddingTop: safeTop + 8 },
         ]}
       >
         <View style={styles.header}>
@@ -152,7 +155,7 @@ export const RadarScreen: React.FC = () => {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottom }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Animated Radar Pulse Visual */}

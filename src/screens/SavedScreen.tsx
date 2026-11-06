@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { ReferenceEventCard } from '../components/ReferenceEventCard';
 import { RootStackParamList } from '../types';
 import { colors, spacing, borderRadius } from '../theme';
+import { getSafeTop, getScrollBottomPadding } from '../utils/safeDimensions';
 
 const { width } = Dimensions.get('window');
 
@@ -27,6 +28,8 @@ type MyEventsTab = 'saved' | 'upcoming' | 'attended';
 
 export const SavedScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTop(insets.top);
+  const scrollBottom = getScrollBottomPadding(insets.bottom);
   const navigation = useNavigation<NavigationProp>();
   const { allEvents, savedIds, isSaved, toggleSave, rsvpIds, attendedIds } = useEvents();
   const { user } = useAuth();
@@ -85,7 +88,7 @@ export const SavedScreen: React.FC = () => {
       <View
         style={[
           styles.safeHeaderWrapper,
-          { paddingTop: Math.max(insets.top, 38) + 8 },
+          { paddingTop: safeTop + 8 },
         ]}
       >
         <View style={styles.header}>
@@ -186,7 +189,7 @@ export const SavedScreen: React.FC = () => {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottom }]}
         showsVerticalScrollIndicator={false}
       >
         {currentList.length === 0 ? (

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,17 @@ import {
   Animated,
   ActivityIndicator,
   Dimensions,
+  ScrollView,
   Alert,
   Easing,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
 import { colors, spacing, borderRadius, typography } from '../theme';
+import { getSafeTop, getSafeBottom } from '../utils/safeDimensions';
 
 const { width } = Dimensions.get('window');
 
@@ -39,6 +41,9 @@ const TITLE_CHARACTERS = [
 ];
 
 export const LoginScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const safeTop = getSafeTop(insets.top);
+  const safeBottom = getSafeBottom(insets.bottom);
   const { login, loginAsGuest } = useAuth();
 
   const [email, setEmail] = useState<string>('alex.mercer@socialbuddy.io');
@@ -46,11 +51,11 @@ export const LoginScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const waveAnim = useRef(new Animated.Value(0)).current;
+  // Animations (React 19 safe initialization)
+  const [fadeAnim] = useState(() => new Animated.Value(0));
+  const [slideAnim] = useState(() => new Animated.Value(30));
+  const [pulseAnim] = useState(() => new Animated.Value(1));
+  const [waveAnim] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     // Entrance animation
@@ -121,7 +126,7 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardContainer}
@@ -136,15 +141,26 @@ export const LoginScreen: React.FC = () => {
           ]}
         />
 
-        <Animated.View
-          style={[
-            styles.content,
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
             {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
+              paddingTop: safeTop + 16,
+              paddingBottom: safeBottom + 24,
             },
           ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
+          <Animated.View
+            style={[
+              styles.content,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
           {/* Professional Designed Brand Header with Wavy Title & Contrast Gradient */}
           <View style={styles.brandHeader}>
             <View style={styles.logoCircle}>
@@ -301,9 +317,10 @@ export const LoginScreen: React.FC = () => {
               <Text style={styles.badgeText}>Verified Hosts</Text>
             </View>
           </View>
-        </Animated.View>
+          </Animated.View>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -314,9 +331,13 @@ const styles = StyleSheet.create({
   },
   keyboardContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     position: 'relative',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
   },
   ambientGlow: {
     position: 'absolute',
@@ -329,7 +350,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 107, 0, 0.1)',
   },
   content: {
-    width: width - spacing.lg * 2,
+    width: '100%',
+    maxWidth: 420,
     alignItems: 'center',
     zIndex: 2,
   },

@@ -29,6 +29,7 @@ import {
   EventAttendee,
 } from '../types';
 import { colors, spacing, borderRadius, typography } from '../theme';
+import { getSafeTop, getScrollBottomPadding } from '../utils/safeDimensions';
 
 const { width } = Dimensions.get('window');
 
@@ -55,6 +56,8 @@ const SAMPLE_POSTERS = [
 
 export const HostScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTop(insets.top);
+  const scrollBottom = getScrollBottomPadding(insets.bottom);
   const navigation = useNavigation<NavigationProp>();
   const {
     addEvent,
@@ -443,7 +446,7 @@ export const HostScreen: React.FC = () => {
       <View
         style={[
           styles.safeHeaderWrapper,
-          { paddingTop: Math.max(insets.top, 38) + 8 },
+          { paddingTop: safeTop + 8 },
         ]}
       >
         <View style={styles.header}>
@@ -529,7 +532,7 @@ export const HostScreen: React.FC = () => {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottom }]}
         showsVerticalScrollIndicator={false}
       >
         {activeTab === 'create' ? (
@@ -812,7 +815,7 @@ export const HostScreen: React.FC = () => {
                 PARTICIPANT READINESS CHECKLIST
               </Text>
               <Text style={styles.sublabelHint}>
-                Help attendees prepare. Any blank field will display as "Not provided."
+                Help attendees prepare. Any blank field will display as &ldquo;Not provided.&rdquo;
               </Text>
 
               <Text style={styles.inputLabel}>Skill Level</Text>

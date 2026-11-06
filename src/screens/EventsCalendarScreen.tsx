@@ -19,6 +19,7 @@ import { useEvents } from '../context/EventsContext';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList, HyperlocalEvent } from '../types';
 import { colors, spacing, borderRadius, typography } from '../theme';
+import { getSafeTop, getScrollBottomPadding } from '../utils/safeDimensions';
 
 const { width } = Dimensions.get('window');
 const CELL_SIZE = (width - spacing.lg * 2) / 7;
@@ -64,6 +65,8 @@ const DAYS_HEADER = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export const EventsCalendarScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTop(insets.top);
+  const scrollBottom = getScrollBottomPadding(insets.bottom);
   const navigation = useNavigation<NavigationProp>();
   const { allEvents, isSaved, toggleSave } = useEvents();
   const { user } = useAuth();
@@ -237,7 +240,7 @@ export const EventsCalendarScreen: React.FC = () => {
       <View
         style={[
           styles.safeHeaderWrapper,
-          { paddingTop: Math.max(insets.top, 38) + 8 },
+          { paddingTop: safeTop + 8 },
         ]}
       >
         {/* Top Navigation Bar: < Events Calendar ... */}
@@ -320,7 +323,7 @@ export const EventsCalendarScreen: React.FC = () => {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottom }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Month Dropdown Bar */}
